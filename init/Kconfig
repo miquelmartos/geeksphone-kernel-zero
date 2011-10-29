@@ -314,7 +314,7 @@ menu "RCU Subsystem"
 
 choice
 	prompt "RCU Implementation"
-	default TREE_RCU
+	default TINY_RCU
 
 config TREE_RCU
 	bool "Tree-based hierarchical RCU"
@@ -335,6 +335,15 @@ config TREE_PREEMPT_RCU
 	  smaller systems.
 
 endchoice
+
+config TINY_RCU
+    bool "UP-only small-memory-footprint RCU"
+    depends on !SMP
+    help
+      This option selects the RCU implementation that is
+      designed for UP systems from which real-time response
+      is not required.  This option greatly reduces the
+      memory footprint of RCU.
 
 config RCU_TRACE
 	bool "Enable tracing for RCU"
@@ -834,6 +843,14 @@ config BUG
           option for embedded systems with no facilities for reporting errors.
           Just say Y.
 
+config SEC_LOG_BUF
+    default y
+    bool "Enable combined log buffer for kernel and bootloader"
+    depends on PRINTK
+    help
+      This option enables support for combined log buffer for
+      kernel printk and bootloader.
+
 config ELF_CORE
 	default y
 	bool "Enable ELF core dumps" if EMBEDDED
@@ -1234,4 +1251,3 @@ source "block/Kconfig"
 
 config PREEMPT_NOTIFIERS
 	bool
-
