@@ -28,6 +28,8 @@
 #include <mach/rpc_server_handset.h>
 #include <mach/qdsp5/snd_adie.h>
 
+#include <linux/wakelock.h>
+
 #define DRIVER_NAME	"msm-handset"
 
 #define HS_SERVER_PROG 0x30000062
@@ -223,6 +225,8 @@ static int adie_svc_id = -1;
 static struct msm_rpc_client *rpc_client;
 static struct msm_handset *hs;
 
+struct wake_lock hs_wake_lock;
+
 static int hs_find_key(uint32_t hscode)
 {
 	int i, key;
@@ -240,6 +244,11 @@ static void
 report_headset_switch(struct input_dev *dev, int key, int value)
 {
 	struct msm_handset *hs = input_get_drvdata(dev);
+	
+	if (value)
+	    wake_lock(&hs_wake_lock);
+	else
+	    wake_unlock(&hs_wake_lock);
 
 	input_report_switch(dev, key, value);
 	switch_set_state(&hs->sdev, value);
@@ -555,24 +564,26 @@ err_client_req:
 static int __devinit hs_rpc_init(void)
 {
 	int rc;
+	
+	wake_lock_init(&hs_wake_lock, WAKE_LOCK_SUSPEND, "hs_wake_lock");
 
 	rc = hs_rpc_cb_init();
 	if (rc) {
-		pr_err("%s: failed to initialize rpc client, try server...\n",
-						__func__);
-
-		rc = msm_rpc_create_server(&hs_rpc_server);
-		if (rc) {
-			pr_err("%s: failed to create rpc server\n", __func__);
-			return rc;
-		}
+		pr_err("%s: failed to initialize rpc client\n", __func__);
+		return rc;
 	}
+
+	rc = msm_rpc_create_server(&hs_rpc_server);
+	if (rc)
+		pr_err("%s: failed to create rpc server\n", __func__);
 
 	return rc;
 }
 
 static void __devexit hs_rpc_deinit(void)
 {
+	wake_lock_destroy(&hs_wake_lock);
+	
 	if (rpc_client)
 		msm_rpc_unregister_client(rpc_client);
 }
