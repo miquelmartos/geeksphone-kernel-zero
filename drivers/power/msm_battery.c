@@ -20,7 +20,7 @@
  * this needs to be before <linux/kernel.h> is loaded,
  * and <linux/sched.h> loads <linux/kernel.h>
  */
-#define DEBUG  1
+#define DEBUG  0
 
 #include <linux/earlysuspend.h>
 #include <linux/err.h>
@@ -56,19 +56,19 @@
 #define CHG_RPC_VER_1_3		0x00010003
 #define CHG_RPC_VER_2_2		0x00020002
 
-#define BATTERY_REGISTER_PROC                          	2
-#define BATTERY_MODIFY_CLIENT_PROC                     	4
-#define BATTERY_DEREGISTER_CLIENT_PROC			5
-#define BATTERY_READ_MV_PROC 				12
-#define BATTERY_ENABLE_DISABLE_FILTER_PROC 		14
+#define BATTERY_REGISTER_PROC				2
+#define BATTERY_MODIFY_CLIENT_PROC			4
+#define BATTERY_DEREGISTER_CLIENT_PROC		5
+#define BATTERY_READ_MV_PROC				12
+#define BATTERY_ENABLE_DISABLE_FILTER_PROC	14
 
 #define VBATT_FILTER			2
 
-#define BATTERY_CB_TYPE_PROC 		1
-#define BATTERY_CB_ID_ALL_ACTIV       	1
+#define BATTERY_CB_TYPE_PROC		1
+#define BATTERY_CB_ID_ALL_ACTIV		1
 #define BATTERY_CB_ID_LOW_VOL		2
 
-#define BATTERY_LOW            	3500
+#define BATTERY_LOW            	3250
 #define BATTERY_HIGH           	4300
 
 #define FEATRUE_BATTERY_CUST /*SWH*/
@@ -80,7 +80,7 @@
 #define BATTERY_PERCENT_2      	30
 #define BATTERY_PERCENT_3      	55
 #define BATTERY_PERCENT_4     	85
-#define BATTERY_PERCENT_5        99 
+#define BATTERY_PERCENT_5       99 
 
 #ifdef CONFIG_SIMCUST_BATTERY_PERCENT_FOR_PE28
 #define BATTERY_LEVEL_0      	BATTERY_LOW
@@ -143,8 +143,8 @@ typedef struct batt_chg_msg {
 	u32	battery_temp;
 	int key_for_charger;
 }batt_chg_msg_t;
-	struct input_dev *wake_input_dev;
-	static int is_from_resume = 0;
+struct input_dev *wake_input_dev;
+static int is_from_resume = 0;
 volatile int key_for_charger = 0;
 EXPORT_SYMBOL(key_for_charger);
 volatile batt_chg_msg_t batt_chg_msg;
@@ -595,8 +595,9 @@ static void msm_batt_update_psy_status(void)
 			 battery_status, BATTERY_STATUS_GOOD, battery_level);
 		battery_status = BATTERY_STATUS_GOOD;
 	}
+
 	if (msm_batt_info.charger_type != charger_type) {
-		if(charger_type == CHARGER_TYPE_USB_PC ||
+		if (charger_type == CHARGER_TYPE_USB_PC ||
 		    charger_type == CHARGER_TYPE_USB_CARKIT) {
 			DBG_LIMIT("BATT: USB charger plugged in\n");
 			msm_batt_info.current_chg_source = USB_CHG;
@@ -1054,6 +1055,7 @@ void msm_batt_late_resume(struct early_suspend *h)
 		return;
 	}
 	set_data_to_arm9(WAKE_UPDATE_BATT_INFO,(char *)&rc,sizeof(int));
+	msm_batt_update_psy_status();
 	pr_debug("%s: exit\n", __func__);
 }
 #endif
