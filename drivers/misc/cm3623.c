@@ -13,6 +13,8 @@
 #include <mach/gpio.h>
 #include <asm/uaccess.h>
 
+#include <linux/wakelock.h>
+
 #define CM3623_ARA                      (0x19>>1)
 #define CM3623_ALS_WR                   (0x20>>1)
 #define CM3623_ALS_RD_MSB               (0x21>>1)
@@ -51,6 +53,8 @@ struct cm3623_sensor_data {
     bool ps_wake;
     bool fake_data;
 };
+
+struct wake_lock prx_wake_lock;
 
 static ssize_t cm3623_als_read(struct file *, char __user *, size_t, loff_t *) ;
 static ssize_t cm3623_ps_read(struct file *, char __user *, size_t, loff_t *) ;
@@ -210,6 +214,8 @@ static void cm3623_report(struct cm3623_sensor_data *sd, int type)
                  if (rc < 0) 
                      break;
     	    sd->distance = cm3623_calc_distance(rc);
+    	sd->distance = sd->distance < 50 ? 1 : 102;
+    	wake_lock_timeout(&prx_wake_lock, 2 * HZ);
     	    //printk("distance %d mm\n", sd->distance);
         }
     } while(0);
@@ -665,6 +671,7 @@ static int cm3623_probe(
     sensor_data->fake_data = 1;
 #endif
 
+    wake_lock_init(&prx_wake_lock, WAKE_LOCK_SUSPEND, "proximity");
     return rc;
 
 probe_err_create_fake_data:
