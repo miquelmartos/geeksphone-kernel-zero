@@ -1612,7 +1612,7 @@ static struct msm_camera_device_platform_data msm_camera_device_data_mt9d112 = {
 };
 
 static struct msm_camera_sensor_flash_data flash_mt9d112 = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
+	.flash_type = MSM_CAMERA_FLASH_NONE, // MSM_CAMERA_FLASH_LED
 	.flash_src  = &msm_flash_src
 };
 
