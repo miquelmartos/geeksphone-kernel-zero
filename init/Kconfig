@@ -1117,7 +1117,7 @@ config TRACEPOINTS
 source "arch/Kconfig"
 
 config SLOW_WORK
-	default n
+	default y
 	bool
 	help
 	  The slow work thread pool provides a number of dynamically allocated
