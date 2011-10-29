@@ -2767,11 +2767,11 @@ static void __init msm7x2x_init_mmc(void)
 	if (machine_is_msm7x25_surf() || machine_is_msm7x27_surf() ||
 		machine_is_msm7x27_ffa()) {
 #ifdef CONFIG_MMC_MSM_SDC2_SUPPORT
-#ifdef __PW28__
-		msm_sdcc_setup_gpio(2, 1);
-#else
+//#ifdef __PW28__
+		//msm_sdcc_setup_gpio(2, 1);
+//#else
 		sdio_wakeup_gpiocfg_slot2();
-#endif
+//#endif
 		msm_add_sdcc(2, &msm7x2x_sdc2_data);
 #endif
 	}
