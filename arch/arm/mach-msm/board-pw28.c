@@ -203,28 +203,38 @@ static struct platform_device mass_storage_device = {
 #endif
 #ifdef CONFIG_USB_ANDROID
 static char *usb_functions_default[] = {
-       "diag",
+#ifdef CONFIG_USB_ANDROID_RMNET
+       "rmnet",
+#endif
+       "usb_mass_storage",
+#ifdef CONFIG_USB_F_SERIAL
        "modem",
        "nmea",
-       "rmnet",
-       "usb_mass_storage",
+#endif
 };
 
 static char *usb_functions_default_adb[] = {
-       "diag",
+       "usb_mass_storage",
        "adb",
+#ifdef CONFIG_USB_ANDROID_RMNET
+       "rmnet",
+#endif
+#ifdef CONFIG_USB_F_SERIAL
        "modem",
        "nmea",
-       "rmnet",
-       "usb_mass_storage",
+#endif
 };
 
 static char *usb_functions_rndis[] = {
+#ifdef CONFIG_USB_ANDROID_RNDIS
        "rndis",
+#endif
 };
 
 static char *usb_functions_rndis_adb[] = {
+#ifdef CONFIG_USB_ANDROID_RNDIS
        "rndis",
+#endif
        "adb",
 };
 
@@ -232,9 +242,7 @@ static char *usb_functions_all[] = {
 #ifdef CONFIG_USB_ANDROID_RNDIS
        "rndis",
 #endif
-#ifdef CONFIG_USB_ANDROID_DIAG
-	"diag",
-#endif
+	"usb_mass_storage",
 	"adb",
 #ifdef CONFIG_USB_F_SERIAL
        "modem",
@@ -243,7 +251,6 @@ static char *usb_functions_all[] = {
 #ifdef CONFIG_USB_ANDROID_RMNET
        "rmnet",
 #endif
-       "usb_mass_storage",
 #ifdef CONFIG_USB_ANDROID_ACM
        "acm",
 #endif
@@ -353,13 +360,19 @@ static struct platform_device smc91x_device = {
 
 #ifdef CONFIG_USB_FUNCTION
 static struct usb_function_map usb_functions_map[] = {
+#ifdef CONFIG_USB_ANDROID_DIAG
 	{"diag", 0},
+#endif
 	{"adb", 1},
+#ifdef CONFIG_USB_F_SERIAL
 	{"modem", 2},
 	{"nmea", 3},
+#endif
 	{"mass_storage", 4},
 	{"ethernet", 5},
+#ifdef CONFIG_USB_ANDROID_RMNET
 	{"rmnet", 6},
+#endif
 };
 
 /* dynamic composition */
@@ -502,16 +515,17 @@ static int msm_hsusb_ldo_enable(int enable)
 
 static int msm_hsusb_pmic_notif_init(void (*callback)(int online), int init)
 {
-       int ret;
+        int ret;
 
-       if (init) {
-               ret = msm_pm_app_rpc_init(callback);
-       } else {
-               msm_pm_app_rpc_deinit(callback);
-               ret = 0;
-       }
-       return ret;
+	if (init) {
+		ret = msm_pm_app_rpc_init(callback);
+	} else {
+		msm_pm_app_rpc_deinit(callback);
+		ret = 0;
+	}
+	return ret;
 }
+
 static struct msm_otg_platform_data msm_otg_pdata = {
        .pmic_notif_init         = msm_hsusb_pmic_notif_init,
        .chg_vbus_draw           = hsusb_chg_vbus_draw,
@@ -647,9 +661,9 @@ static unsigned int dec_concurrency_table[] = {
 
 static struct msm_adspdec_info dec_info_list[] = {
 	DEC_INFO("AUDPLAY0TASK", 13, 0, 11), /* AudPlay0BitStreamCtrlQueue */
-       DEC_INFO("AUDPLAY1TASK", 14, 1, 11),  /* AudPlay1BitStreamCtrlQueue */
-       DEC_INFO("AUDPLAY2TASK", 15, 2, 11),  /* AudPlay2BitStreamCtrlQueue */
-       DEC_INFO("AUDPLAY3TASK", 16, 3, 11),  /* AudPlay3BitStreamCtrlQueue */
+    DEC_INFO("AUDPLAY1TASK", 14, 1, 11),  /* AudPlay1BitStreamCtrlQueue */
+    DEC_INFO("AUDPLAY2TASK", 15, 2, 11),  /* AudPlay2BitStreamCtrlQueue */
+    DEC_INFO("AUDPLAY3TASK", 16, 3, 11),  /* AudPlay3BitStreamCtrlQueue */
 	DEC_INFO("AUDPLAY4TASK", 17, 4, 1),  /* AudPlay4BitStreamCtrlQueue */
 };
 
@@ -2935,8 +2949,6 @@ static void generate_serial_from_uuid(void)
 #endif
 	strcpy (saved_command_line, boot_command_line);
 }
-
-
 void get_sd_boot_mode(unsigned *mode)
 {
     unsigned *pMode;
@@ -3226,8 +3238,6 @@ static void __init msm_msm7x2x_allocate_memory_regions(void)
 		size , MSM_GPU_PHYS_START_ADDR);
 
 #endif
-
-
 }
 
 static void __init msm7x2x_map_io(void)
@@ -3250,7 +3260,6 @@ static void __init msm7x2x_map_io(void)
 		else
 			/* R/W latency: 3 cycles; */
 			l2x0_init(MSM_L2CC_BASE, 0x00068012, 0xfe000000);
-
 	}
 #endif
 }
