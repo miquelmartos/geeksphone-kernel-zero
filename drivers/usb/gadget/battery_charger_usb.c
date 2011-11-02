@@ -53,19 +53,6 @@
 
 #include "gadget_chips.h"
 
-
-/*
- * Kbuild is not very cooperative with respect to linking separately
- * compiled library objects into one module.  So for now we won't use
- * separate compilation ... ensuring init/exit sections work to shrink
- * the runtime footprint, and giving us at least some parts of what
- * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
- */
-#if 0
-#include "usbstring.c"
-#include "config.c"
-#include "epautoconf.c"
-#endif
 /*-------------------------------------------------------------------------*/
 
 #define DRIVER_DESC		"charger Gadget"
@@ -73,10 +60,6 @@
 
 static const char shortname [] = "charger";
 static const char driver_desc [] = DRIVER_DESC;
-
-static dev_t g_charger_devno;
-
-static struct class *usb_gadget_class;
 
 /*-------------------------------------------------------------------------*/
 
@@ -947,15 +930,7 @@ static int
 printer_set_config(struct printer_dev *dev, unsigned number)
 {
 	int			result = 0;
-	printk(KERN_ERR "\n%s ====\n",__func__);
-	struct usb_gadget	*gadget = dev->gadget;
-#if 0
-	if (gadget_is_sa1100(gadget) && dev->config) {
-		/* tx fifo is full, but we can't clear it...*/
-		INFO(dev, "can't change configurations\n");
-		return -ESPIPE;
-	}
-#endif
+	unsigned power;
 	return 0;
 	switch (number) {
 	case DEV_CONFIG_VALUE:
@@ -967,36 +942,13 @@ printer_set_config(struct printer_dev *dev, unsigned number)
 	case 0:
 		break;
 	}
-	printk(KERN_ERR "\n%s =1==\n",__func__);
-#if 0
-	if (result) {
-		usb_gadget_vbus_draw(dev->gadget,
-				dev->gadget->is_otg ? 8 : 100);
-	} else {
-#endif
-		char *speed;
-		unsigned power;
 	printk(KERN_ERR "\n%s =2==\n",__func__);
 		power = 2 * config_desc.bMaxPower;
 			printk(KERN_ERR "\n%s =3==\n",__func__);
 		usb_gadget_vbus_draw(dev->gadget, power);
 	printk(KERN_ERR "\n%s =4==\n",__func__);
-#if 0
-		switch (gadget->speed) {
-		case USB_SPEED_FULL:	speed = "full"; break;
-#ifdef CONFIG_USB_GADGET_DUALSPEED
-		case USB_SPEED_HIGH:	speed = "high"; break;
-#endif
-		default:		speed = "?"; break;
-	//	}
-#endif
 		dev->config = number;
 	printk(KERN_ERR "\n%s =5==\n",__func__);
-#if 0 
-		INFO(dev, "%s speed config #%d: %d mA, %s\n",
-				speed, number, power, driver_desc);
-	}
-#endif
 	return result;
 }
 
@@ -1138,56 +1090,25 @@ static void printer_soft_reset(struct printer_dev *dev)
  * The setup() callback implements all the ep0 functionality that's not
  * handled lower down.
  */
-static int
-printer_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
+extern void hsusb_chg_vbus_draw(unsigned mA);
+static int printer_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 {
-
-printk(KERN_ERR "\n%s  1\n",__func__);
 	struct printer_dev	*dev = get_gadget_data(gadget);
-printk(KERN_ERR "\n%s   2\n",__func__);
 	struct usb_request	*req ;//= dev->req;
-	printk(KERN_ERR "\n%s   3\n",__func__);
 	int			value = -EOPNOTSUPP;
-printk(KERN_ERR "\n%s   4\n",__func__);
 	u16			wIndex = le16_to_cpu(ctrl->wIndex);
-printk(KERN_ERR "\n%s   5\n",__func__);
 	u16			wValue = le16_to_cpu(ctrl->wValue);
-printk(KERN_ERR "\n%s   6\n",__func__);
 	u16			wLength = le16_to_cpu(ctrl->wLength);
-printk(KERN_ERR "\n%s    7\n",__func__);
 	DBG(dev, "ctrl req%02x.%02x v%04x i%04x l%d\n",
 		ctrl->bRequestType, ctrl->bRequest, wValue, wIndex, wLength);
 printk(KERN_ERR "\n%s   8\n",__func__);
 printk(KERN_ERR "ctrl req%02x.%02x v%04x i%04x l%d\n",
 		ctrl->bRequestType, ctrl->bRequest, wValue, wIndex, wLength);
 printk(KERN_ERR "\n%s  9\n",__func__);
-extern void hsusb_chg_vbus_draw(unsigned mA);
-//	hsusb_chg_vbus_draw(500);
-//req->complete = printer_setup_complete;
-#if 0
-	switch (ctrl->bRequestType&USB_TYPE_MASK) {
-
-	case USB_TYPE_STANDARD:
-		switch (ctrl->bRequest) {
-		case USB_REQ_SET_CONFIGURATION:
-printk(KERN_ERR "\n%s   10\n",__func__);
-			if (ctrl->bRequestType != 0)
-				break;
-			if (gadget->a_hnp_support)
-				DBG(dev, "HNP available\n");
-			else if (gadget->a_alt_hnp_support)
-				DBG(dev, "HNP needs a different root port\n");
-#endif
 			wValue = 1;
 printk(KERN_ERR "\n%s   wvalue = %d\n",__func__,wValue);
 	value = printer_set_config(dev, wValue);
 printk(KERN_ERR "\n%s   value = %d\n",__func__,value);
-#if 0
-			value = printer_set_config(dev, wValue);
-			break;
-		}
-	}
-#endif
 
 return 0;
 	req->complete = printer_setup_complete;
@@ -1321,7 +1242,6 @@ unknown:
 			wValue, wIndex, wLength);
 		break;
 	}
-#if 1 
 	/* respond with data transfer before status phase? */
 	if (value >= 0) {
 		req->length = value;
@@ -1333,7 +1253,6 @@ unknown:
 			printer_setup_complete(gadget->ep0, req);
 		}
 	}
-#endif
 
 	/* host either stalls (value < 0) or reports success */
 	return value;
@@ -1343,13 +1262,10 @@ static void
 printer_disconnect(struct usb_gadget *gadget)
 {
 	struct printer_dev	*dev = get_gadget_data(gadget);
-	printk(KERN_ERR "\n%s +++\n",__func__);
 	unsigned long		flags;
 
 	DBG(dev, "%s\n", __func__);
 	spin_lock_irqsave(&dev->lock, flags);
-
-	//printer_reset_interface(dev);
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 	printk(KERN_ERR "\n%s +++\n",__func__);
@@ -1369,86 +1285,17 @@ static void printer_resume(struct usb_gadget *gadget)
 static void
 printer_unbind(struct usb_gadget *gadget)
 {
-	struct printer_dev	*dev = get_gadget_data(gadget);
-	struct usb_request	*req;
-
 	printk(KERN_ERR "\n%s +++\n",__func__);
 	DBG(dev, "%s\n", __func__);
-#if 0
-	/* Remove sysfs files */
-	device_destroy(usb_gadget_class, g_printer_devno);
-
-	/* Remove Character Device */
-	cdev_del(&dev->printer_cdev);
-#endif
 	printk(KERN_ERR "\n%s 1\n",__func__);
 
 	/* we must already have been disconnected ... no i/o may be active */
-//	WARN_ON(!list_empty(&dev->tx_reqs_active));
 	printk(KERN_ERR "\n%s 2+++\n",__func__);
 
-//	WARN_ON(!list_empty(&dev->rx_reqs_active));
 	printk(KERN_ERR "\n%s 3+++\n",__func__);
 
 	/* Free all memory for this driver. */
-#if 0
-//	while (!list_empty(&dev->tx_reqs)) {
-	printk(KERN_ERR "\n%s 4+++\n",__func__);
-
-//		req = container_of(dev->tx_reqs.next, struct usb_request,
-//				list);
-//		list_del(&req->list);
-	printk(KERN_ERR "\n%s 5+++\n",__func__);
-
-		printer_req_free(dev->in_ep, req);
-	printk(KERN_ERR "\n%s 6+++\n",__func__);
-
-	}
-#endif
 	printk(KERN_ERR "\n%s 7+++\n",__func__);
-#if 0
-	if (dev->current_rx_req != NULL)
-		printer_req_free(dev->out_ep, dev->current_rx_req);
-	printk(KERN_ERR "\n%s 8+++\n",__func__);
-
-	while (!list_empty(&dev->rx_reqs)) {
-		printk(KERN_ERR "\n%s 9+++\n",__func__);
-
-		req = container_of(dev->rx_reqs.next,
-				struct usb_request, list);
-	printk(KERN_ERR "\n%s 10+++\n",__func__);
-
-		list_del(&req->list);
-		printer_req_free(dev->out_ep, req);
-	printk(KERN_ERR "\n%s 11+++\n",__func__);
-
-	}
-	printk(KERN_ERR "\n%s 12+++\n",__func__);
-
-	while (!list_empty(&dev->rx_buffers)) {
-	printk(KERN_ERR "\n%s 13+++\n",__func__);
-
-		req = container_of(dev->rx_buffers.next,
-				struct usb_request, list);
-	printk(KERN_ERR "\n%s 14+++\n",__func__);
-
-		list_del(&req->list);
-		printer_req_free(dev->out_ep, req);
-	printk(KERN_ERR "\n%s 15+++\n",__func__);
-
-	}
-
-	printk(KERN_ERR "\n%s 16+++\n",__func__);
-
-	if (dev->req) {
-		printer_req_free(gadget->ep0, dev->req);
-	printk(KERN_ERR "\n%s 17+++\n",__func__);
-
-		dev->req = NULL;
-	printk(KERN_ERR "\n%s 18+++\n",__func__);
-
-	}
-#endif
 	printk(KERN_ERR "\n%s 19+++\n",__func__);
 
 	set_gadget_data(gadget, NULL);
@@ -1468,34 +1315,6 @@ printer_bind(struct usb_gadget *gadget)
 
 	dev = &usb_printer_gadget;
 	return 0;
-#if 0
-
-	/* Setup the sysfs files for the printer gadget. */
-	dev->pdev = device_create(usb_gadget_class, NULL, g_printer_devno,
-				  NULL, "g_printer");
-	if (IS_ERR(dev->pdev)) {
-		ERROR(dev, "Failed to create device: g_printer\n");
-		goto fail;
-	}
-
-	/*
-	 * Register a character device as an interface to a user mode
-	 * program that handles the printer specific functionality.
-	 */
-	cdev_init(&dev->printer_cdev, &printer_io_operations);
-	dev->printer_cdev.owner = THIS_MODULE;
-	status = cdev_add(&dev->printer_cdev, g_printer_devno, 1);
-	if (status) {
-		ERROR(dev, "Failed to open char device\n");
-		goto fail;
-	}
-
-	if (gadget_is_sa1100(gadget)) {
-		/* hardware can't write zero length packets. */
-		ERROR(dev, "SA1100 controller is unsupport by this driver\n");
-		goto fail;
-	}
-#endif
 
 	gcnum = usb_gadget_controller_number(gadget);
 	if (gcnum >= 0) {
@@ -1673,61 +1492,24 @@ static struct usb_gadget_driver printer_driver = {
 	},
 };
 
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_AUTHOR("Craig Nadler");
-MODULE_LICENSE("GPL");
-
-static int __init
-init(void)
+extern int battchg_pause;
+static int __init init(void)
 {
-	int status;
-#if 0
-	usb_gadget_class = class_create(THIS_MODULE, "usb_printer_gadget");
-	if (IS_ERR(usb_gadget_class)) {
-		status = PTR_ERR(usb_gadget_class);
-		ERROR(dev, "unable to create usb_gadget class %d\n", status);
-		return status;
-	}
-
-	status = alloc_chrdev_region(&g_printer_devno, 0, 1,
-			"USB printer gadget");
-	if (status) {
-		ERROR(dev, "alloc_chrdev_region %d\n", status);
-		class_destroy(usb_gadget_class);
-		return status;
-	}
-#endif
+	int status = 0;
 	printk(KERN_ERR "\n%s\n",__func__);
 	{
-#if 0
-	int power_on_status;
 
-		extern int msm_proc_comm(unsigned cmd, unsigned *data1, unsigned *data2);
-		msm_proc_comm(6/*PCOM_GET_POWER_ON_STATUS*/,&power_on_status,0);
-
-		printk(KERN_ERR "\nMSM_FB.C POWER ON %x\n",power_on_status);
-#endif	
-	extern int battchg_pause;
-
-//	if(0x40 == power_on_status || power_on_status == 0x44 || power_on_status == 0x41)
 	if(battchg_pause == 1)
 		status = usb_gadget_register_driver(&printer_driver);
 	}
 	printk(KERN_ERR "\n%s\n",__func__);
-#if 0
-	if (status) {
-		//class_destroy(usb_gadget_class);
-		unregister_chrdev_region(g_printer_devno, 1);
-		DBG(dev, "usb_gadget_register_driver %x\n", status);
-	}
-#endif
 
 	return status;
 }
 module_init(init);
 int register_charger_usb_init(void)
 {
-	int status;
+	int status = 0;
 	printk(KERN_ERR "\n%s\n",__func__);
 	{
 		status = usb_gadget_register_driver(&printer_driver);
@@ -1737,15 +1519,11 @@ int register_charger_usb_init(void)
 	return status;
 }
 EXPORT_SYMBOL(register_charger_usb_init);
-unregister_charger_usb(void)
+void unregister_charger_usb(void)
 {
 	int status;
 
 	spin_lock(&usb_printer_gadget.lock_printer_io);
-#if 0
-	class_destroy(usb_gadget_class);
-	unregister_chrdev_region(g_printer_devno, 2);
-#endif
 
 	status = usb_gadget_unregister_driver(&printer_driver);
 	if (status)
@@ -1761,10 +1539,6 @@ cleanup(void)
 	int status;
 
 	spin_lock(&usb_printer_gadget.lock_printer_io);
-#if 0
-	class_destroy(usb_gadget_class);
-	unregister_chrdev_region(g_printer_devno, 2);
-#endif
 	status = usb_gadget_unregister_driver(&printer_driver);
 
 	if (status)
@@ -1773,3 +1547,7 @@ cleanup(void)
 	spin_unlock(&usb_printer_gadget.lock_printer_io);
 }
 module_exit(cleanup);
+
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Craig Nadler");
+MODULE_LICENSE("GPL");
