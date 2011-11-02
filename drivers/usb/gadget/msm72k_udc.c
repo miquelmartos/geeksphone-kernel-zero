@@ -355,25 +355,24 @@ static int usb_get_max_power(struct usb_info *ui)
 
 static int usb_phy_stuck_check(struct usb_info *ui)
 {
-	unsigned long flags;
 	/*
 	 * write some value (0xAA) into scratch reg (0x16) and read it back,
 	 * If the read value is same as written value, means PHY is normal
 	 * otherwise, PHY seems to have stuck.
 	 */
-	 
-	spin_lock_irqsave(&ui->lock, flags);
-	if (ulpi_write(ui, 0xAA, 0x16) == -1) {
+
+	if (otg_io_write(ui->xceiv, 0xAA, 0x16) == -1) {
 		dev_dbg(&ui->pdev->dev,
-			"%s(): ulpi write timeout\n", __func__);
+				"%s(): ulpi write timeout\n", __func__);
 		return -EIO;
 	}
-	if (ulpi_read(ui, 0x16) != 0xAA) {
+
+	if (otg_io_read(ui->xceiv, 0x16) != 0xAA) {
 		dev_dbg(&ui->pdev->dev,
-			"%s(): read value is incorrect\n", __func__);
+				"%s(): read value is incorrect\n", __func__);
 		return -EIO;
 	}
-	spin_unlock_irqrestore(&ui->lock, flags);
+
 	return 0;
 }
 
