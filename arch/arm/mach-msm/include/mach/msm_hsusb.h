@@ -71,6 +71,11 @@ enum otg_mode {
 	OTG_VCHG,     		/* Based on VCHG interrupt */
 };
 
+/* used to configure the default mode,if otg_mode is USER_CONTROL */
+enum usb_mode {
+	USB_HOST_MODE,
+	USB_PERIPHERAL_MODE,
+};
 struct usb_function_map {
 	char name[20];
 	unsigned bit_pos;
@@ -84,14 +89,12 @@ struct usb_composition {
 };
 #endif
 
-#ifdef CONFIG_USB_GADGET_MSM_72K
 enum chg_type {
 	USB_CHG_TYPE__SDP,
 	USB_CHG_TYPE__CARKIT,
 	USB_CHG_TYPE__WALLCHARGER,
 	USB_CHG_TYPE__INVALID
 };
-#endif
 
 enum pre_emphasis_level {
 	PRE_EMPHASIS_DEFAULT,
@@ -119,13 +122,13 @@ enum hs_drv_amplitude {
 	HS_DRV_AMPLITUDE_75_PERCENT = (3 << 2),
 };
 
-#define HS_DRV_SLOPE_DEFAULT   (-1)
+#define HS_DRV_SLOPE_DEFAULT	(-1)
 
 /* used to configure the analog switch to select b/w host and peripheral */
 enum usb_switch_control {
-	USB_SWITCH_PERIPHERAL = 0,      /* Configure switch in peripheral mode*/
-	USB_SWITCH_HOST,                /* Host mode */
-	USB_SWITCH_DISABLE,             /* No mode selected, shutdown power */
+	USB_SWITCH_PERIPHERAL = 0,	/* Configure switch in peripheral mode*/
+	USB_SWITCH_HOST,		/* Host mode */
+	USB_SWITCH_DISABLE,		/* No mode selected, shutdown power */
 };
 
 struct msm_hsusb_gadget_platform_data {
@@ -181,12 +184,12 @@ struct msm_otg_platform_data {
 	int			phy_can_powercollapse;
 	int			pclk_required_during_lpm;
 
-    /* HSUSB core in 8660 has the capability to gate the
-     * pclk when not being used. Though this feature is
-     * now being disabled because of H/w issues
-     */
-    int			pclk_is_hw_gated;
-    char		*pclk_src_name;	
+	/* HSUSB core in 8660 has the capability to gate the
+	 * pclk when not being used. Though this feature is
+	 * now being disabled because of H/w issues
+	 */
+	int			pclk_is_hw_gated;
+	char			*pclk_src_name;
 
 	int (*ldo_init) (int init);
 	int (*ldo_enable) (int enable);
@@ -199,8 +202,10 @@ struct msm_otg_platform_data {
 	int (*pmic_register_vbus_sn) (void (*callback)(int online));
 	void (*pmic_unregister_vbus_sn) (void (*callback)(int online));
 	int (*pmic_enable_ldo) (int);
+	int (*init_gpio)(int on);
 	void (*setup_gpio)(enum usb_switch_control mode);
 	u8      otg_mode;
+	u8	usb_mode;
 	void (*vbus_power) (unsigned phy_info, int on);
 
 	/* charger notification apis */
@@ -209,7 +214,7 @@ struct msm_otg_platform_data {
 	int  (*chg_init)(int init);
 	int (*config_vddcx)(int high);
 	int (*init_vddcx)(int init);
-	
+
 	struct pm_qos_request_list *pm_qos_req_dma;
 };
 
