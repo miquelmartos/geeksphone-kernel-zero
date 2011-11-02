@@ -197,7 +197,7 @@ static struct platform_device mass_storage_device = {
 	.name           = "usb_mass_storage",
 	.id             = -1,
 	.dev            = {
-		.platform_data          = &usb_mass_storage_pdata,
+	.platform_data  = &usb_mass_storage_pdata,
 	},
 };
 #endif
@@ -258,76 +258,74 @@ static char *usb_functions_all[] = {
 
 static struct android_usb_product usb_products[] = {
 	{
-               .product_id     = 0x9026,
-               .num_functions  = ARRAY_SIZE(usb_functions_default),
-               .functions      = usb_functions_default,
+		.product_id	= 0x9026,
+		.num_functions	= ARRAY_SIZE(usb_functions_default),
+		.functions	= usb_functions_default,
 	},
 	{
-               .product_id     = 0x9025,
-               .num_functions  = ARRAY_SIZE(usb_functions_default_adb),
-               .functions      = usb_functions_default_adb,
+		.product_id	= 0xC001,
+		.num_functions	= ARRAY_SIZE(usb_functions_default_adb),
+		.functions	= usb_functions_default_adb,
 	},
 	{
-               .product_id     = 0xf00e,
-               .num_functions  = ARRAY_SIZE(usb_functions_rndis),
-               .functions      = usb_functions_rndis,
+		.product_id	= 0xC008,
+		.num_functions	= ARRAY_SIZE(usb_functions_rndis),
+		.functions	= usb_functions_rndis,
 	},
 	{
-               .product_id     = 0x9024,
-               .num_functions  = ARRAY_SIZE(usb_functions_rndis_adb),
-               .functions      = usb_functions_rndis_adb,
+		.product_id	= 0xC007,
+		.num_functions	= ARRAY_SIZE(usb_functions_rndis_adb),
+		.functions	= usb_functions_rndis_adb,
 	},
 };
 
 static struct usb_mass_storage_platform_data mass_storage_pdata = {
 	.nluns		= 1,
-       .vendor         = "Qualcomm Incorporated",
-       .product        = "Mass storage",
-       .release        = 0x0100,
+	.vendor		= "Qualcomm Incorporated",
+	.product	= "Mass storage",
+	.release	= 0x0100,
 };
 
 static struct platform_device usb_mass_storage_device = {
 	.name           = "usb_mass_storage",
 	.id             = -1,
 	.dev            = {
-		.platform_data          = &mass_storage_pdata,
+	.platform_data  = &mass_storage_pdata,
 	},
 };
 
-
 static struct usb_ether_platform_data rndis_pdata = {
-       /* ethaddr is filled by board_serialno_setup */
-       .vendorID       = 0x05C6,
-       .vendorDescr    = "Qualcomm Incorporated",
+	/* ethaddr is filled by board_serialno_setup */
+	.vendorID	= 0x05C6,
+	.vendorDescr	= "Qualcomm Incorporated",
 };
 
 static struct platform_device rndis_device = {
-       .name   = "rndis",
-       .id     = -1,
-       .dev    = {
-               .platform_data = &rndis_pdata,
-       },
+	.name	= "rndis",
+	.id	= -1,
+	.dev	= {
+	.platform_data = &rndis_pdata,
+	},
 };
 
-
 static struct android_usb_platform_data android_usb_pdata = {
-	.vendor_id	= VID,
-	.product_id     = 0x9026,
+	.vendor_id	= 0x489,
+	.product_id = 0x9026,
 	.version	= 0x0100,
-	.product_name	= PRUD_NAME,					      //used and need to be modified?
-	.manufacturer_name = MANU_NAME,					// need to be modified?
-       .num_products = ARRAY_SIZE(usb_products),
-       .products = usb_products,
-       .num_functions = ARRAY_SIZE(usb_functions_all),
-       .functions = usb_functions_all,
-       .serial_number = "1234567890ABCDEF",
+	.product_name	   = "Zero",
+	.manufacturer_name = "GeeksPhone",
+    .num_products = ARRAY_SIZE(usb_products),
+    .products = usb_products,
+    .num_functions = ARRAY_SIZE(usb_functions_all),
+    .functions = usb_functions_all,
+    .serial_number = "1234567890ABCDEF",
 };
 
 static struct platform_device android_usb_device = {
 	.name	= "android_usb",
 	.id		= -1,
-	.dev		= {
-		.platform_data = &android_usb_pdata,
+	.dev	= {
+	.platform_data = &android_usb_pdata,
 	},
 };
 
@@ -434,7 +432,7 @@ static struct usb_composition usb_func_composition[] = {
 static struct msm_hsusb_platform_data msm_hsusb_pdata = {
 	.version	= 0x0100,
 	.phy_info	= (USB_PHY_INTEGRATED | USB_PHY_MODEL_65NM),
-	.vendor_id          = 0x5c6,
+	.vendor_id          = 0x489,
 	.product_name       = "Qualcomm HSUSB Device",						// not used 20101201
 	.serial_number      = "1234567890ABCDEF",								// not used 20101201
 	.manufacturer_name  = "Qualcomm Incorporated",						// not used 20101201
@@ -527,15 +525,16 @@ static int msm_hsusb_pmic_notif_init(void (*callback)(int online), int init)
 }
 
 static struct msm_otg_platform_data msm_otg_pdata = {
-       .pmic_notif_init         = msm_hsusb_pmic_notif_init,
-       .chg_vbus_draw           = hsusb_chg_vbus_draw,
-       .chg_connected           = hsusb_chg_connected,
-       .chg_init                = hsusb_chg_init,
+	.rpc_connect             = hsusb_rpc_connect,
+	.pmic_notif_init         = msm_hsusb_pmic_notif_init,
+	.chg_vbus_draw           = hsusb_chg_vbus_draw,
+	.chg_connected           = hsusb_chg_connected,
+	.chg_init                = hsusb_chg_init,
 #ifdef CONFIG_USB_EHCI_MSM
-       .vbus_power = msm_hsusb_vbus_power,
+	.vbus_power = msm_hsusb_vbus_power,
 #endif
-       .ldo_init               = msm_hsusb_ldo_init,
-       .ldo_enable             = msm_hsusb_ldo_enable,
+	.ldo_init		= msm_hsusb_ldo_init,
+	.ldo_enable		= msm_hsusb_ldo_enable,
 };
 
 #ifdef CONFIG_USB_GADGET
@@ -982,10 +981,9 @@ static struct platform_device lcdc_ili9325sim_panel_device = {
 	.name   = "ili9325sim_qvga",
 	.id     = 0,
 	.dev    = {
-		.platform_data = &lcdc_ili9325sim_panel_data,
+	.platform_data = &lcdc_ili9325sim_panel_data,
 	}
 };
-
 
 static struct resource msm_fb_resources[] = {
 	{
@@ -2401,8 +2399,8 @@ static struct platform_device *devices[] __initdata = {
 #endif
 
 #ifdef CONFIG_USB_ANDROID
-       &usb_mass_storage_device,
-       &rndis_device,
+	&usb_mass_storage_device,
+	&rndis_device,
 	&android_usb_device,
 #endif
 	&msm_device_i2c,
