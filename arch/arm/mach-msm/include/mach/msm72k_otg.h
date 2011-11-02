@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -127,6 +127,10 @@ struct msm_otg {
 	struct clk		*hs_clk;
 	struct clk		*hs_pclk;
 	struct clk		*hs_cclk;
+	
+	/* pclk source for voting */
+	struct clk		*pclk_src;
+	
 	/* clk regime has created dummy clock id for phy so
 	 * that generic clk_reset api can be used to reset phy
 	 */
@@ -134,6 +138,7 @@ struct msm_otg {
 
 	int			irq;
 	int			vbus_on_irq;
+	int			id_irq;
 	void __iomem		*regs;
 	atomic_t		in_lpm;
 	/* charger-type is modified by gadget for legacy chargers
@@ -147,13 +152,15 @@ struct msm_otg {
 	/* Reset phy and link */
 	void (*reset)		(struct otg_transceiver *otg, int phy_reset);
 	/* pmic notfications apis */
-	u8 pmic_notif_supp;
+	u8 pmic_vbus_notif_supp;
+	u8 pmic_id_notif_supp;
 	struct msm_otg_platform_data *pdata;
 
 	spinlock_t lock; /* protects OTG state */
 	struct wake_lock wlock;
 	unsigned long b_last_se0_sess; /* SRP initial condition check */
 	unsigned long inputs;
+	int pmic_id_status;
 	unsigned long tmouts;
 	u8 active_tmout;
 	struct hrtimer timer;
@@ -187,7 +194,10 @@ static inline int depends_on_axi_freq(struct otg_transceiver *xceiv)
 
 	dev = container_of(xceiv, struct msm_otg, otg);
 
-	return !dev->pdata->core_clk;
+	if (dev->pdata->pclk_src_name)
+		return 1;
+	else
+		return 0;
 }
 
 static inline int can_phy_power_collapse(struct msm_otg *dev)
