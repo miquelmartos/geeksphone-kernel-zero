@@ -188,7 +188,7 @@ static struct resource smc91x_resources[] = {
 static struct usb_mass_storage_platform_data usb_mass_storage_pdata = {
 	.nluns          = 0x02,
 	.buf_size       = 16384,
-	.vendor         = MASS_STORAGE_NAME,        // not used
+	.vendor         = "GOOGLE",
 	.product        = "Mass storage",
 	.release        = 0xffff,
 };
@@ -197,10 +197,11 @@ static struct platform_device mass_storage_device = {
 	.name           = "usb_mass_storage",
 	.id             = -1,
 	.dev            = {
-	.platform_data  = &usb_mass_storage_pdata,
+	.platform_data          = &usb_mass_storage_pdata,
 	},
 };
 #endif
+
 #ifdef CONFIG_USB_ANDROID
 static char *usb_functions_default[] = {
 #ifdef CONFIG_USB_ANDROID_RMNET
@@ -263,17 +264,17 @@ static struct android_usb_product usb_products[] = {
 		.functions	= usb_functions_default,
 	},
 	{
-		.product_id	= 0xC001,
+		.product_id	= 0x9018,
 		.num_functions	= ARRAY_SIZE(usb_functions_default_adb),
 		.functions	= usb_functions_default_adb,
 	},
 	{
-		.product_id	= 0xC008,
+		.product_id	= 0xf00e,
 		.num_functions	= ARRAY_SIZE(usb_functions_rndis),
 		.functions	= usb_functions_rndis,
 	},
 	{
-		.product_id	= 0xC007,
+		.product_id	= 0x9024,
 		.num_functions	= ARRAY_SIZE(usb_functions_rndis_adb),
 		.functions	= usb_functions_rndis_adb,
 	},
@@ -282,15 +283,15 @@ static struct android_usb_product usb_products[] = {
 static struct usb_mass_storage_platform_data mass_storage_pdata = {
 	.nluns		= 1,
 	.vendor		= "Qualcomm Incorporated",
-	.product	= "Mass storage",
+	.product    = "Mass storage",
 	.release	= 0x0100,
 };
 
 static struct platform_device usb_mass_storage_device = {
-	.name           = "usb_mass_storage",
-	.id             = -1,
-	.dev            = {
-	.platform_data  = &mass_storage_pdata,
+	.name	= "usb_mass_storage",
+	.id	= -1,
+	.dev	= {
+	.platform_data = &mass_storage_pdata,
 	},
 };
 
@@ -309,16 +310,16 @@ static struct platform_device rndis_device = {
 };
 
 static struct android_usb_platform_data android_usb_pdata = {
-	.vendor_id	= 0x489,
-	.product_id = 0x9026,
+	.vendor_id	= 0x05C6,
+	.product_id	= 0x9026,
 	.version	= 0x0100,
-	.product_name	   = "Zero",
-	.manufacturer_name = "GeeksPhone",
-    .num_products = ARRAY_SIZE(usb_products),
-    .products = usb_products,
-    .num_functions = ARRAY_SIZE(usb_functions_all),
-    .functions = usb_functions_all,
-    .serial_number = "1234567890ABCDEF",
+	.product_name		= "Qualcomm HSUSB Device",
+	.manufacturer_name	= "Qualcomm Incorporated",
+	.num_products = ARRAY_SIZE(usb_products),
+	.products = usb_products,
+	.num_functions = ARRAY_SIZE(usb_functions_all),
+	.functions = usb_functions_all,
+	.serial_number = "1234567890ABCDEF",
 };
 
 static struct platform_device android_usb_device = {
@@ -331,20 +332,20 @@ static struct platform_device android_usb_device = {
 
 static int __init board_serialno_setup(char *serialno)
 {
-       int i;
-       char *src = serialno;
+	int i;
+	char *src = serialno;
 
-       /* create a fake MAC address from our serial number.
-        * first byte is 0x02 to signify locally administered.
-        */
-       rndis_pdata.ethaddr[0] = 0x02;
-       for (i = 0; *src; i++) {
-               /* XOR the USB serial across the remaining bytes */
-               rndis_pdata.ethaddr[i % (ETH_ALEN - 1) + 1] ^= *src++;
-       }
+	/* create a fake MAC address from our serial number.
+	 * first byte is 0x02 to signify locally administered.
+	 */
+	rndis_pdata.ethaddr[0] = 0x02;
+	for (i = 0; *src; i++) {
+		/* XOR the USB serial across the remaining bytes */
+		rndis_pdata.ethaddr[i % (ETH_ALEN - 1) + 1] ^= *src++;
+	}
 
-       android_usb_pdata.serial_number = serialno;
-       return 1;
+	android_usb_pdata.serial_number = serialno;
+	return 1;
 }
 //__setup("androidboot.serialno=", board_serialno_setup);
 #endif
@@ -432,7 +433,7 @@ static struct usb_composition usb_func_composition[] = {
 static struct msm_hsusb_platform_data msm_hsusb_pdata = {
 	.version	= 0x0100,
 	.phy_info	= (USB_PHY_INTEGRATED | USB_PHY_MODEL_65NM),
-	.vendor_id          = 0x489,
+	.vendor_id          = 0x5c6,
 	.product_name       = "Qualcomm HSUSB Device",						// not used 20101201
 	.serial_number      = "1234567890ABCDEF",								// not used 20101201
 	.manufacturer_name  = "Qualcomm Incorporated",						// not used 20101201
@@ -447,22 +448,22 @@ static struct msm_hsusb_platform_data msm_hsusb_pdata = {
 #ifdef CONFIG_USB_EHCI_MSM
 static void msm_hsusb_vbus_power(unsigned phy_info, int on)
 {
-       if (on)
-               msm_hsusb_vbus_powerup();
-       else
-               msm_hsusb_vbus_shutdown();
+	if (on)
+		msm_hsusb_vbus_powerup();
+	else
+		msm_hsusb_vbus_shutdown();
 }
 
 static struct msm_usb_host_platform_data msm_usb_host_pdata = {
-       .phy_info       = (USB_PHY_INTEGRATED | USB_PHY_MODEL_65NM),
+	.phy_info       = (USB_PHY_INTEGRATED | USB_PHY_MODEL_65NM),
 };
 
 static void __init msm7x2x_init_host(void)
 {
-       if (machine_is_msm7x25_ffa() || machine_is_msm7x27_ffa())
-               return;
+	if (machine_is_msm7x25_ffa() || machine_is_msm7x27_ffa())
+		return;
 
-       msm_add_host(0, &msm_usb_host_pdata);
+	msm_add_host(0, &msm_usb_host_pdata);
 }
 #endif
 
@@ -480,40 +481,40 @@ static int hsusb_rpc_connect(int connect)
 struct vreg *vreg_3p3;
 static int msm_hsusb_ldo_init(int init)
 {
-       if (init) {
-               vreg_3p3 = vreg_get(NULL, "usb");
-               if (IS_ERR(vreg_3p3))
-                       return PTR_ERR(vreg_3p3);
-               vreg_set_level(vreg_3p3, 3300);
-       } else
-               vreg_put(vreg_3p3);
+	if (init) {
+		vreg_3p3 = vreg_get(NULL, "usb");
+		if (IS_ERR(vreg_3p3))
+			return PTR_ERR(vreg_3p3);
+		vreg_set_level(vreg_3p3, 3300);
+	} else
+		vreg_put(vreg_3p3);
 
-       return 0;
+	return 0;
 }
 
 static int msm_hsusb_ldo_enable(int enable)
 {
-       static int ldo_status;
+	static int ldo_status;
 
-       if (!vreg_3p3 || IS_ERR(vreg_3p3))
-               return -ENODEV;
+	if (!vreg_3p3 || IS_ERR(vreg_3p3))
+		return -ENODEV;
 
-       if (ldo_status == enable)
-               return 0;
+	if (ldo_status == enable)
+		return 0;
 
-       ldo_status = enable;
+	ldo_status = enable;
 
-       pr_info("%s: %d", __func__, enable);
+	pr_info("%s: %d", __func__, enable);
 
-       if (enable)
-               return vreg_enable(vreg_3p3);
+	if (enable)
+		return vreg_enable(vreg_3p3);
 
-       return vreg_disable(vreg_3p3);
+	return vreg_disable(vreg_3p3);
 }
 
 static int msm_hsusb_pmic_notif_init(void (*callback)(int online), int init)
 {
-        int ret;
+	int ret;
 
 	if (init) {
 		ret = msm_pm_app_rpc_init(callback);
@@ -576,7 +577,7 @@ static struct platform_device msm_device_snd = {
 	.name = "msm_snd",
 	.id = -1,
 	.dev    = {
-		.platform_data = &msm_device_snd_endpoints
+	.platform_data = &msm_device_snd_endpoints
 	},
 };
 
@@ -1016,7 +1017,7 @@ static struct platform_device msm_fb_device = {
 	.num_resources  = ARRAY_SIZE(msm_fb_resources),
 	.resource       = msm_fb_resources,
 	.dev    = {
-		.platform_data = &msm_fb_pdata,
+	.platform_data = &msm_fb_pdata,
 	}
 };
 
@@ -1243,7 +1244,7 @@ static struct platform_device msm_device_kgsl = {
 	.num_resources = ARRAY_SIZE(kgsl_resources),
 	.resource = kgsl_resources,
 	.dev = {
-		.platform_data = &kgsl_pdata,
+	.platform_data = &kgsl_pdata,
 	},
 };
 #endif
@@ -1359,46 +1360,6 @@ static struct i2c_board_info i2c_devices[] = {
 		I2C_BOARD_INFO("mt9d112", 0x78 >> 1),
 	},
 #endif
-#ifdef CONFIG_OV5640
-	{
-		I2C_BOARD_INFO("ov5640", 0x78 >> 1),
-	},
-#endif
-#ifdef CONFIG_OV2659
-	{
-		I2C_BOARD_INFO("ov2659", 0x60 >> 1),
-	},
-#endif
-#ifdef CONFIG_OV7690
-	{
-		I2C_BOARD_INFO("ov7690", 0x42 >> 1),
-	},
-#endif
-#ifdef CONFIG_S5K3E2FX
-	{
-		I2C_BOARD_INFO("s5k3e2fx", 0x20 >> 1),
-	},
-#endif
-#ifdef CONFIG_MT9P012
-	{
-		I2C_BOARD_INFO("mt9p012", 0x6C >> 1),
-	},
-#endif
-#ifdef CONFIG_MT9P012_KM
-	{
-		I2C_BOARD_INFO("mt9p012_km", 0x6C >> 2),
-	},
-#endif
-#if defined(CONFIG_MT9T013) || defined(CONFIG_SENSORS_MT9T013)
-	{
-		I2C_BOARD_INFO("mt9t013", 0x6C),
-	},
-#endif
-#ifdef CONFIG_VB6801
-	{
-		I2C_BOARD_INFO("vb6801", 0x20),
-	},
-#endif
 #if defined(CONFIG_SENSORS_MMC31XX)
 #include <linux/mmc31xx.h>
 	{
@@ -1509,12 +1470,12 @@ int pmic_set_flash_led_current(enum pmic8058_leds id, unsigned mA)
 
 static struct msm_camera_sensor_flash_src msm_flash_src = {
 	.flash_sr_type = MSM_CAMERA_FLASH_SRC_PMIC,
-       ._fsrc.pmic_src.num_of_src = 1,
+	._fsrc.pmic_src.num_of_src = 1,
 	._fsrc.pmic_src.low_current  = 30,
 	._fsrc.pmic_src.high_current = 100,
-       ._fsrc.pmic_src.led_src_1 = 0,
-       ._fsrc.pmic_src.led_src_2 = 0,
-       ._fsrc.pmic_src.pmic_set_current = pmic_set_flash_led_current,
+	._fsrc.pmic_src.led_src_1 = 0,
+	._fsrc.pmic_src.led_src_2 = 0,
+	._fsrc.pmic_src.pmic_set_current = pmic_set_flash_led_current,
 };
 #ifdef CONFIG_MT9D112
 static void msm_camera_vreg_config_mt9d112(int vreg_en)
@@ -1645,676 +1606,6 @@ static struct platform_device msm_camera_sensor_mt9d112 = {
 	},
 };
 #endif
-
-#ifdef CONFIG_OV5640
-static void msm_camera_vreg_config_ov5640(int vreg_en)
-#if 1
-{
-	int rc;
-
-	pr_info("msm_camera_vreg_config_ov5640:vreg_en[%d]\n",vreg_en);
-	gpio_request(3, "ov5640");
-	gpio_request(89, "ov5640");
-	gpio_request(90, "ov5640");
-	gpio_request(15, "ov5640");
-	if (vreg_gp2 == NULL) {
-		vreg_gp2 = vreg_get(NULL, "gp2");
-		if (IS_ERR(vreg_gp2)) {
-			printk(KERN_ERR "%s: vreg_get(%s) failed (%ld)\n",
-				__func__, "gp2", PTR_ERR(vreg_gp2));
-			return;
-		}
-
-		rc = vreg_set_level(vreg_gp2, 2800);
-		if (rc) {
-			printk(KERN_ERR "%s: GP2 set_level failed (%d)\n",
-				__func__, rc);
-		}
-	}
-
-	if (vreg_gp3 == NULL) {
-		vreg_gp3 = vreg_get(NULL, "gp3");
-		if (IS_ERR(vreg_gp3)) {
-			printk(KERN_ERR "%s: vreg_get(%s) failed (%ld)\n",
-				__func__, "gp3", PTR_ERR(vreg_gp3));
-			return;
-		}
-
-		rc = vreg_set_level(vreg_gp3, 2800);
-		if (rc) {
-			printk(KERN_ERR "%s: GP3 set level failed (%d)\n",
-				__func__, rc);
-		}
-	}
-	if (vreg_en) {
-		rc = vreg_enable(vreg_gp2);
-		if (rc) {
-			printk(KERN_ERR "%s: GP2 enable failed (%d)\n",
-				 __func__, rc);
-		}
-		rc = vreg_enable(vreg_gp3);
-		if (rc) {
-			printk(KERN_ERR "%s: GP3 enable failed (%d)\n",
-				__func__, rc);
-		}
-		gpio_direction_output(90, 1);
-        mdelay(100);
-		gpio_direction_output(3, 0);
-	} else {
-		rc = vreg_disable(vreg_gp2);
-		if (rc) {
-			printk(KERN_ERR "%s: GP2 disable failed (%d)\n",
-				 __func__, rc);
-		}
-		rc = vreg_disable(vreg_gp3);
-		if (rc) {
-			printk(KERN_ERR "%s: GP3 disable failed (%d)\n",
-				__func__, rc);
-		}
-		gpio_direction_output(90, 0);
-		mdelay(10);
-		gpio_direction_output(3, 0);
-		gpio_direction_output(89, 0);
-		gpio_direction_output(15, 0);
-        mdelay(10);
-	}
-    gpio_free(3);
-    gpio_free(89);
-    gpio_free(90);
-    gpio_free(15);        
-}
-#else
-{
-	int rc;
-
-	pr_info("msm_camera_vreg_config_ov5640:vreg_en[%d]\n",vreg_en);
-
-	gpio_request(3, "ov5640");
-	gpio_request(89, "ov5640");
-	gpio_request(90, "ov5640");
-	gpio_request(15, "ov5640");
-
-
-	if (vreg_gp2 == NULL) {
-		vreg_gp2 = vreg_get(NULL, "gp2");
-		if (IS_ERR(vreg_gp2)) {
-			printk(KERN_ERR "%s: vreg_get(%s) failed (%ld)\n",
-				__func__, "gp2", PTR_ERR(vreg_gp2));
-			return;
-		}
-
-		rc = vreg_set_level(vreg_gp2, 2800);
-		if (rc) {
-			printk(KERN_ERR "%s: GP2 set_level failed (%d)\n",
-				__func__, rc);
-		}
-	}
-
-	if (vreg_gp3 == NULL) {
-		vreg_gp3 = vreg_get(NULL, "gp3");
-		if (IS_ERR(vreg_gp3)) {
-			printk(KERN_ERR "%s: vreg_get(%s) failed (%ld)\n",
-				__func__, "gp3", PTR_ERR(vreg_gp3));
-			return;
-		}
-
-		rc = vreg_set_level(vreg_gp3, 2800);
-		if (rc) {
-			printk(KERN_ERR "%s: GP3 set level failed (%d)\n",
-				__func__, rc);
-		}
-	}
-
-	if (vreg_msme2 == NULL) {
-		vreg_msme2 = vreg_get(NULL, "msme2");
-		if (IS_ERR(vreg_msme2)) {
-			printk(KERN_ERR "%s: vreg_get(%s) failed (%ld)\n",
-				__func__, "msme2", PTR_ERR(vreg_msme2));
-			return;
-		}
-
-		rc = vreg_set_level(vreg_msme2, 1500);
-		if (rc) {
-			printk(KERN_ERR "%s: msme2 set level failed (%d)\n",
-				__func__, rc);
-		}
-	}
-
-
-	if (vreg_en) {
-		rc = vreg_enable(vreg_gp2);
-		if (rc) {
-			printk(KERN_ERR "%s: GP2 enable failed (%d)\n",
-				 __func__, rc);
-		}
-
-		rc = vreg_enable(vreg_gp3);
-		if (rc) {
-			printk(KERN_ERR "%s: GP3 enable failed (%d)\n",
-				__func__, rc);
-		}
-        
-		rc = vreg_enable(vreg_msme2);
-		if (rc) {
-			printk(KERN_ERR "%s: msme2 enable failed (%d)\n",
-				__func__, rc);
-		}
-        
-		mdelay(100);
-        
-		gpio_direction_output(3, 0);
-
-		mdelay(10); 
-        
-	} else {
-		rc = vreg_disable(vreg_gp2);
-		if (rc) {
-			printk(KERN_ERR "%s: GP2 disable failed (%d)\n",
-				 __func__, rc);
-		}
-
-		rc = vreg_disable(vreg_gp3);
-		if (rc) {
-			printk(KERN_ERR "%s: GP3 disable failed (%d)\n",
-				__func__, rc);
-		}
-        
-		rc = vreg_disable(vreg_msme2);
-		if (rc) {
-			printk(KERN_ERR "%s: msme2 disable failed (%d)\n",
-				__func__, rc);
-		}
-		
-		mdelay(10);    
-		gpio_direction_output(3, 0);
-		gpio_direction_output(89, 0);
-		gpio_direction_output(90, 0);
-		gpio_direction_output(15, 0);        
-		mdelay(10);
-		
-	}
-
-    gpio_free(3);
-    gpio_free(89);
-    gpio_free(90);
-    gpio_free(15);
-    
-}
-#endif
-
-static void config_camera_on_gpios_ov5640(void)
-{
-	int vreg_en = 1;
-
-	config_gpio_table(camera_on_gpio_table,ARRAY_SIZE(camera_on_gpio_table));
-
-	msm_camera_vreg_config_ov5640(vreg_en);
-
-}
-
-static void config_camera_off_gpios_ov5640(void)
-{
-	int vreg_en = 0;
-
-	config_gpio_table(camera_off_gpio_table,ARRAY_SIZE(camera_off_gpio_table));
-
-	msm_camera_vreg_config_ov5640(vreg_en);
-    
-}
-
-static struct msm_camera_device_platform_data msm_camera_device_data_ov5640 = {
-	.camera_gpio_on  = config_camera_on_gpios_ov5640,
-	.camera_gpio_off = config_camera_off_gpios_ov5640,
-	.ioext.mdcphy = MSM_MDC_PHYS,
-	.ioext.mdcsz  = MSM_MDC_SIZE,
-	.ioext.appphy = MSM_CLK_CTL_PHYS,
-	.ioext.appsz  = MSM_CLK_CTL_SIZE,
-};
-
-static struct msm_camera_sensor_flash_data flash_ov5640 = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
-static struct msm_camera_sensor_info msm_camera_sensor_ov5640_data = {
-	.sensor_name    = "ov5640",
-	.sensor_reset   = 89,
-	.sensor_pwd     = 3,
-	.vcm_pwd        = 0,
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data_ov5640,
-	.flash_data     = &flash_ov5640
-};
-
-static struct platform_device msm_camera_sensor_ov5640 = {
-	.name      = "msm_camera_ov5640",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_ov5640_data,
-	},
-};
-#endif
-
-#ifdef CONFIG_OV2659
-static void msm_camera_vreg_config_ov2659(int vreg_en)
-{
-	int rc;
-
-	pr_info("msm_camera_vreg_config_ov2659:vreg_en[%d]\n",vreg_en);
-    
-	gpio_request(3, "ov2659");
-	gpio_request(89, "ov2659");
-	gpio_request(90, "ov2659");
-	gpio_request(15, "ov2659");
-
-	if (vreg_gp2 == NULL) {
-		vreg_gp2 = vreg_get(NULL, "gp2");
-		if (IS_ERR(vreg_gp2)) {
-			printk(KERN_ERR "%s: vreg_get(%s) failed (%ld)\n",
-				__func__, "gp2", PTR_ERR(vreg_gp2));
-			return;
-		}
-
-		rc = vreg_set_level(vreg_gp2, 2800);
-		if (rc) {
-			printk(KERN_ERR "%s: GP2 set_level failed (%d)\n",
-				__func__, rc);
-		}
-	}
-
-	if (vreg_gp3 == NULL) {
-		vreg_gp3 = vreg_get(NULL, "gp3");
-		if (IS_ERR(vreg_gp3)) {
-			printk(KERN_ERR "%s: vreg_get(%s) failed (%ld)\n",
-				__func__, "gp3", PTR_ERR(vreg_gp3));
-			return;
-		}
-
-		rc = vreg_set_level(vreg_gp3, 2800);
-		if (rc) {
-			printk(KERN_ERR "%s: GP3 set level failed (%d)\n",
-				__func__, rc);
-		}
-	}
-
-	if (vreg_en) {
-     
-		msleep(50);
-		gpio_direction_output(3, 1);
-		msleep(10); 
-        
-		rc = vreg_enable(vreg_gp2);
-		if (rc) {
-			printk(KERN_ERR "%s: GP2 enable failed (%d)\n",
-				 __func__, rc);
-		}        
-		msleep(10); 
-        
-		rc = vreg_enable(vreg_gp3);
-		if (rc) {
-			printk(KERN_ERR "%s: GP3 enable failed (%d)\n",
-				__func__, rc);
-		}
-        msleep(50);
-		gpio_direction_output(90, 1);
-		msleep(50);
-		gpio_direction_output(3, 0);
-		msleep(50);        
-        
-	} else {
-		msleep(50);
-		gpio_direction_output(89, 0);
-		msleep(10);
-		rc = vreg_disable(vreg_gp3);
-		if (rc) {
-			printk(KERN_ERR "%s: GP3 disable failed (%d)\n",
-				__func__, rc);
-		}
-
-		msleep(10);
-
-		rc = vreg_disable(vreg_gp2);
-		if (rc) {
-			printk(KERN_ERR "%s: GP2 disable failed (%d)\n",
-				 __func__, rc);
-		}
-
-		msleep(50);
-		gpio_direction_output(90, 0);
-		gpio_direction_output(3, 0);
-		gpio_direction_output(15, 0);
-        msleep(10);
-		
-	}
-
-    gpio_free(3);
-    gpio_free(89);
-    gpio_free(90);
-    gpio_free(15);        
- 
-}
-
-static void config_camera_on_gpios_ov2659(void)
-{
-	int vreg_en = 1;
-
-	config_gpio_table(camera_on_gpio_table,ARRAY_SIZE(camera_on_gpio_table));
-
-	msm_camera_vreg_config_ov2659(vreg_en);
-
-}
-
-static void config_camera_off_gpios_ov2659(void)
-{
-	int vreg_en = 0;
-
-	config_gpio_table(camera_off_gpio_table,ARRAY_SIZE(camera_off_gpio_table));
-
-	msm_camera_vreg_config_ov2659(vreg_en);
-    
-}
-static struct msm_camera_device_platform_data msm_camera_device_data_ov2659 = {
-	.camera_gpio_on  = config_camera_on_gpios_ov2659,
-	.camera_gpio_off = config_camera_off_gpios_ov2659,
-	.ioext.mdcphy = MSM_MDC_PHYS,
-	.ioext.mdcsz  = MSM_MDC_SIZE,
-	.ioext.appphy = MSM_CLK_CTL_PHYS,
-	.ioext.appsz  = MSM_CLK_CTL_SIZE,
-};
-
-static struct msm_camera_sensor_flash_data flash_ov2659 = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
-static struct msm_camera_sensor_info msm_camera_sensor_ov2659_data = {
-	.sensor_name    = "ov2659",
-	.sensor_reset   = 89,
-	.sensor_pwd     = 3,
-	.vcm_pwd        = 0,
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data_ov2659,
-	.flash_data     = &flash_ov2659
-};
-
-static struct platform_device msm_camera_sensor_ov2659 = {
-	.name      = "msm_camera_ov2659",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_ov2659_data,
-	},
-};
-#endif
-
-#ifdef CONFIG_OV7690
-
-static void msm_camera_vreg_config_ov7690(int vreg_en)
-{
-	int rc;
-
-	pr_info("msm_camera_vreg_config_ov7690:vreg_en[%d]\n",vreg_en);
-
-	gpio_request(3, "ov7690");
-	gpio_request(89, "ov7690");
-	gpio_request(90, "ov7690");
-	gpio_request(15, "ov7690");
-
-
-	if (vreg_gp2 == NULL) {
-		vreg_gp2 = vreg_get(NULL, "gp2");
-		if (IS_ERR(vreg_gp2)) {
-			printk(KERN_ERR "%s: vreg_get(%s) failed (%ld)\n",
-				__func__, "gp2", PTR_ERR(vreg_gp2));
-			return;
-		}
-
-		rc = vreg_set_level(vreg_gp2, 2800);
-		if (rc) {
-			printk(KERN_ERR "%s: GP2 set_level failed (%d)\n",
-				__func__, rc);
-		}
-	}
-
-	if (vreg_gp3 == NULL) {
-		vreg_gp3 = vreg_get(NULL, "gp3");
-		if (IS_ERR(vreg_gp3)) {
-			printk(KERN_ERR "%s: vreg_get(%s) failed (%ld)\n",
-				__func__, "gp3", PTR_ERR(vreg_gp3));
-			return;
-		}
-
-		rc = vreg_set_level(vreg_gp3, 2800);
-		if (rc) {
-			printk(KERN_ERR "%s: GP3 set level failed (%d)\n",
-				__func__, rc);
-		}
-	}
-
-	if (vreg_en) {
-		msleep(50);
-		gpio_direction_output(3, 1);
-		msleep(10);
-		rc = vreg_enable(vreg_gp2);
-		if (rc) {
-			printk(KERN_ERR "%s: GP2 enable failed (%d)\n",
-				 __func__, rc);
-		}
-
-		msleep(10); 
-
-		rc = vreg_enable(vreg_gp3);
-		if (rc) {
-			printk(KERN_ERR "%s: GP3 enable failed (%d)\n",
-				__func__, rc);
-		}        
-        
-		msleep(50);        
-		gpio_direction_output(89, 1);
-		msleep(50);
-		gpio_direction_output(90, 0);
-		msleep(50);        
-        
-	} else {
-		msleep(50);
-		gpio_direction_output(89, 0);
-		msleep(10);
-
-		rc = vreg_disable(vreg_gp3);
-		if (rc) {
-			printk(KERN_ERR "%s: GP3 disable failed (%d)\n",
-				__func__, rc);
-		}
-
-		msleep(10); 
-
-		rc = vreg_disable(vreg_gp2);
-		if (rc) {
-			printk(KERN_ERR "%s: GP2 disable failed (%d)\n",
-				 __func__, rc);
-		}
-        
-		msleep(50);    
-		gpio_direction_output(3, 0);
-		gpio_direction_output(90, 0);
-		gpio_direction_output(15, 0);        
-		msleep(10);
-		
-	}
-
-    gpio_free(3);
-    gpio_free(89);
-    gpio_free(90);
-    gpio_free(15);
-    
-}
-
-static void config_camera_on_gpios_ov7690(void)
-{
-	int vreg_en = 1;
-
-	config_gpio_table(camera_on_gpio_table,ARRAY_SIZE(camera_on_gpio_table));
-
-	msm_camera_vreg_config_ov7690(vreg_en);
-
-}
-
-static void config_camera_off_gpios_ov7690(void)
-{
-	int vreg_en = 0;
-
-	config_gpio_table(camera_off_gpio_table,ARRAY_SIZE(camera_off_gpio_table));
-
-	msm_camera_vreg_config_ov7690(vreg_en);
-    
-}
-
-static struct msm_camera_device_platform_data msm_camera_device_data_ov7690 = {
-	.camera_gpio_on  = config_camera_on_gpios_ov7690,
-	.camera_gpio_off = config_camera_off_gpios_ov7690,
-	.ioext.mdcphy = MSM_MDC_PHYS,
-	.ioext.mdcsz  = MSM_MDC_SIZE,
-	.ioext.appphy = MSM_CLK_CTL_PHYS,
-	.ioext.appsz  = MSM_CLK_CTL_SIZE,
-};
-
-
-static struct msm_camera_sensor_flash_data flash_ov7690 = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
-static struct msm_camera_sensor_info msm_camera_sensor_ov7690_data = {
-	.sensor_name    = "ov7690",
-	.sensor_reset   = 0,
-	.sensor_pwd     = 90,
-	.vcm_pwd        = 0,
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data_ov7690,
-	.flash_data     = &flash_ov7690
-};
-
-static struct platform_device msm_camera_sensor_ov7690 = {
-	.name      = "msm_camera_ov7690",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_ov7690_data,
-	},
-};
-#endif
-
-#ifdef CONFIG_S5K3E2FX
-static struct msm_camera_sensor_flash_data flash_s5k3e2fx = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
-
-static struct msm_camera_sensor_info msm_camera_sensor_s5k3e2fx_data = {
-	.sensor_name    = "s5k3e2fx",
-	.sensor_reset   = 89,
-	.sensor_pwd     = 85,
-	.vcm_pwd        = 0,
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data,
-	.flash_data     = &flash_s5k3e2fx
-};
-
-static struct platform_device msm_camera_sensor_s5k3e2fx = {
-	.name      = "msm_camera_s5k3e2fx",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_s5k3e2fx_data,
-	},
-};
-#endif
-
-#ifdef CONFIG_MT9P012
-static struct msm_camera_sensor_flash_data flash_mt9p012 = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
-
-static struct msm_camera_sensor_info msm_camera_sensor_mt9p012_data = {
-	.sensor_name    = "mt9p012",
-	.sensor_reset   = 89,
-	.sensor_pwd     = 85,
-	.vcm_pwd        = 88,
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data,
-	.flash_data     = &flash_mt9p012
-};
-
-static struct platform_device msm_camera_sensor_mt9p012 = {
-	.name      = "msm_camera_mt9p012",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_mt9p012_data,
-	},
-};
-#endif
-
-#ifdef CONFIG_MT9P012_KM
-static struct msm_camera_sensor_flash_data flash_mt9p012_km = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
-
-static struct msm_camera_sensor_info msm_camera_sensor_mt9p012_km_data = {
-	.sensor_name    = "mt9p012_km",
-	.sensor_reset   = 89,
-	.sensor_pwd     = 85,
-	.vcm_pwd        = 88,
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data,
-	.flash_data     = &flash_mt9p012_km
-};
-
-static struct platform_device msm_camera_sensor_mt9p012_km = {
-	.name      = "msm_camera_mt9p012_km",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_mt9p012_km_data,
-	},
-};
-#endif
-
-#ifdef CONFIG_MT9T013
-static struct msm_camera_sensor_flash_data flash_mt9t013 = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
-
-static struct msm_camera_sensor_info msm_camera_sensor_mt9t013_data = {
-	.sensor_name    = "mt9t013",
-	.sensor_reset   = 89,
-	.sensor_pwd     = 85,
-	.vcm_pwd        = 0,
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data,
-	.flash_data     = &flash_mt9t013
-};
-
-static struct platform_device msm_camera_sensor_mt9t013 = {
-	.name      = "msm_camera_mt9t013",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_mt9t013_data,
-	},
-};
-#endif
-
-#ifdef CONFIG_VB6801
-static struct msm_camera_sensor_flash_data flash_vb6801 = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
-
-static struct msm_camera_sensor_info msm_camera_sensor_vb6801_data = {
-	.sensor_name    = "vb6801",
-	.sensor_reset   = 89,
-	.sensor_pwd     = 88,
-	.vcm_pwd        = 0,
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data,
-	.flash_data     = &flash_vb6801
-};
-
-static struct platform_device msm_camera_sensor_vb6801 = {
-	.name      = "msm_camera_vb6801",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_vb6801_data,
-	},
-};
-#endif
 #endif
 
 static u32 msm_calculate_batt_capacity(u32 current_voltage);
@@ -2422,32 +1713,8 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_pmic_leds,
 	&msm_device_snd,
 	&msm_device_adspdec,
-#ifdef CONFIG_MT9T013
-	&msm_camera_sensor_mt9t013,
-#endif
 #ifdef CONFIG_MT9D112
 	&msm_camera_sensor_mt9d112,
-#endif
-#ifdef CONFIG_OV5640
-	&msm_camera_sensor_ov5640,
-#endif
-#ifdef CONFIG_OV2659
-	&msm_camera_sensor_ov2659,
-#endif
-#ifdef CONFIG_OV7690
-	&msm_camera_sensor_ov7690,
-#endif
-#ifdef CONFIG_S5K3E2FX
-	&msm_camera_sensor_s5k3e2fx,
-#endif
-#ifdef CONFIG_MT9P012
-	&msm_camera_sensor_mt9p012,
-#endif
-#ifdef CONFIG_MT9P012_KM
-	&msm_camera_sensor_mt9p012_km,
-#endif
-#ifdef CONFIG_VB6801
-	&msm_camera_sensor_vb6801,
 #endif
 	&msm_bluesleep_device,
 #ifdef CONFIG_ARCH_MSM7X27
@@ -2489,8 +1756,8 @@ static ssize_t pw28_virtual_keys_show(struct kobject *kobj,
 
 static struct kobj_attribute pw28_virtual_keys_attr = {
 	.attr = {
-		.name = "virtualkeys.synaptics-rmi-touchscreen",
-		.mode = S_IRUGO,
+	.name = "virtualkeys.synaptics-rmi-touchscreen",
+	.mode = S_IRUGO,
 	},
 	.show = &pw28_virtual_keys_show,
 };
