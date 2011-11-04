@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -127,10 +127,6 @@ struct msm_otg {
 	struct clk		*hs_clk;
 	struct clk		*hs_pclk;
 	struct clk		*hs_cclk;
-
-	/* pclk source for voting */
-	struct clk		*pclk_src;
-
 	/* clk regime has created dummy clock id for phy so
 	 * that generic clk_reset api can be used to reset phy
 	 */
@@ -138,7 +134,6 @@ struct msm_otg {
 
 	int			irq;
 	int			vbus_on_irq;
-	int			id_irq;
 	void __iomem		*regs;
 	atomic_t		in_lpm;
 	/* charger-type is modified by gadget for legacy chargers
@@ -152,15 +147,13 @@ struct msm_otg {
 	/* Reset phy and link */
 	void (*reset)		(struct otg_transceiver *otg, int phy_reset);
 	/* pmic notfications apis */
-	u8 pmic_vbus_notif_supp;
-	u8 pmic_id_notif_supp;
+	u8 pmic_notif_supp;
 	struct msm_otg_platform_data *pdata;
 
 	spinlock_t lock; /* protects OTG state */
 	struct wake_lock wlock;
 	unsigned long b_last_se0_sess; /* SRP initial condition check */
 	unsigned long inputs;
-	int pmic_id_status;
 	unsigned long tmouts;
 	u8 active_tmout;
 	struct hrtimer timer;
@@ -175,19 +168,26 @@ struct msm_otg {
 #endif
 };
 
-static inline int pclk_requires_voting(struct otg_transceiver *xceiv)
+/* usb controller's protocol engine depends on AXI clock.
+ * On some platforms this dependency is removed by
+ * introducing usb core clock
+ */
+static inline int depends_on_axi_freq(struct otg_transceiver *xceiv)
 {
 	struct msm_otg *dev;
 
 	if (!xceiv)
 		return 0;
 
+	/* for 8660 usb core is in sps and at the same time it does not
+	 * have core clock
+	 */
+	if (machine_is_msm8x60_surf() || machine_is_msm8x60_ffa())
+		return 0;
+
 	dev = container_of(xceiv, struct msm_otg, otg);
 
-	if (dev->pdata->pclk_src_name)
-		return 1;
-	else
-		return 0;
+	return !dev->pdata->core_clk;
 }
 
 static inline int can_phy_power_collapse(struct msm_otg *dev)

@@ -433,7 +433,7 @@ static int msm_hsusb_pmic_notif_init(void (*callback)(int online), int init)
 }
 static struct msm_otg_platform_data msm_otg_pdata = {
 	.rpc_connect	= hsusb_rpc_connect,
-	.pmic_vbus_notif_init         = msm_hsusb_pmic_notif_init,
+	.pmic_notif_init         = msm_hsusb_pmic_notif_init,
 	.chg_vbus_draw		 = hsusb_chg_vbus_draw,
 	.chg_connected		 = hsusb_chg_connected,
 	.chg_init		 = hsusb_chg_init,
@@ -442,8 +442,6 @@ static struct msm_otg_platform_data msm_otg_pdata = {
 #endif
 	.ldo_init		= msm_hsusb_ldo_init,
 	.ldo_enable		= msm_hsusb_ldo_enable,
-	.pclk_required_during_lpm = 1
-	.pclk_src_name  = "ebi1_usb_clk",
 };
 
 #ifdef CONFIG_USB_GADGET

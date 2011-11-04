@@ -444,7 +444,7 @@ static struct msm_hsusb_platform_data msm_hsusb_pdata = {
 };
 #endif
 
-#ifdef CONFIG_USB_EHCI_MSM_72K
+#ifdef CONFIG_USB_EHCI_MSM
 static void msm_hsusb_vbus_power(unsigned phy_info, int on)
 {
        if (on)
@@ -526,17 +526,15 @@ static int msm_hsusb_pmic_notif_init(void (*callback)(int online), int init)
 
 static struct msm_otg_platform_data msm_otg_pdata = {
 	.rpc_connect             = hsusb_rpc_connect,
-	.pmic_vbus_notif_init    = msm_hsusb_pmic_notif_init,
+	.pmic_notif_init         = msm_hsusb_pmic_notif_init,
 	.chg_vbus_draw           = hsusb_chg_vbus_draw,
 	.chg_connected           = hsusb_chg_connected,
 	.chg_init                = hsusb_chg_init,
-#ifdef CONFIG_USB_EHCI_MSM_72K
+#ifdef CONFIG_USB_EHCI_MSM
 	.vbus_power = msm_hsusb_vbus_power,
 #endif
 	.ldo_init		= msm_hsusb_ldo_init,
 	.ldo_enable		= msm_hsusb_ldo_enable,
-	.pclk_required_during_lpm = 1
-	.pclk_src_name  = "ebi1_usb_clk",
 };
 
 #ifdef CONFIG_USB_GADGET
@@ -3120,7 +3118,7 @@ static void __init msm7x2x_init(void)
 #endif
 	lcdc_gordon_gpio_init();
 	msm_fb_add_devices();
-#ifdef CONFIG_USB_EHCI_MSM_72K
+#ifdef CONFIG_USB_EHCI_MSM
 	msm7x2x_init_host();
 #endif
 	msm7x2x_init_mmc();

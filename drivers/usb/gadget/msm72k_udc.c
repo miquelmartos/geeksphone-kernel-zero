@@ -647,7 +647,7 @@ reprime_ept:
 	 * is set. To workaround the issue, use dTD INFO bit
 	 * to make decision on re-prime or not.
 	 */
-	writel_relaxed(n, USB_ENDPTPRIME);
+	writel(n, USB_ENDPTPRIME);
 	/* busy wait till endptprime gets clear */
 	while ((readl_relaxed(USB_ENDPTPRIME) & n))
 		;
@@ -701,7 +701,7 @@ int usb_ept_queue_xfer(struct msm_endpoint *ept, struct usb_request *_req)
 		return -ESHUTDOWN;
 	}
 
-	f (ui->usb_state == USB_STATE_SUSPENDED) {
+	if (ui->usb_state == USB_STATE_SUSPENDED) {
 		if (!atomic_read(&ui->remote_wakeup)) {
 			req->req.status = -EAGAIN;
 			spin_unlock_irqrestore(&ui->lock, flags);
