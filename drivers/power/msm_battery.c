@@ -545,7 +545,7 @@ static void msm_batt_update_psy_status(void)
 	}
 
 	#ifdef CONFIG_SIMCUST_BATTERY_PERCENT_FOR_PE28
-		calculate_capacity(battery_voltage);
+		msm_batt_capacity_cust(battery_voltage);
 	#endif    
 
 	if (charger_status == msm_batt_info.charger_status &&
