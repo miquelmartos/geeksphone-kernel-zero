@@ -566,7 +566,7 @@ static int msm_pm_poll_state(int nr_grps, struct msm_pm_polled_group *grps)
  *****************************************************************************/
 
 #define SCLK_HZ (32768)
-#define MSM_PM_SLEEP_TICK_LIMIT (0x6DDD000)
+#define MSM_PM_SLEEP_TICK_LIMIT (0x54600000)
 
 #ifdef CONFIG_MSM_SLEEP_TIME_OVERRIDE
 static int msm_pm_sleep_time_override;
@@ -1708,7 +1708,7 @@ static void msm_pm_power_off(void)
 static void msm_pm_restart(char str, const char *cmd)
 {
 	msm_rpcrouter_close();
-	msm_proc_comm(PCOM_RESET_CHIP, &restart_reason, 0);
+	msm_proc_comm(PCOM_RESET_CHIP_IMM, &restart_reason, 0);
 
 	for (;;)
 		;
@@ -1725,6 +1725,12 @@ static int msm_reboot_call
 			restart_reason = 0x77665502;
 		} else if (!strcmp(cmd, "eraseflash")) {
 			restart_reason = 0x776655EF;
+   		} else if (!strcmp(cmd, "reset_rtc")) {
+			restart_reason = 0x776655F0;
+		} else if (!strncmp(cmd, "SDL1", 4)) {
+			restart_reason = 0x53444C31;    //ASCII code of "SDL1"
+		} else if (!strncmp(cmd, "SDL2", 4)) {
+			restart_reason = 0x53444C32;    //ASCII code of "SDL2"
 		} else if (!strncmp(cmd, "oem-", 4)) {
 			unsigned code = simple_strtoul(cmd + 4, 0, 16) & 0xff;
 			restart_reason = 0x6f656d00 | code;
