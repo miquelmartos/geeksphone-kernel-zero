@@ -900,7 +900,7 @@ static int msm_batt_modify_client(u32 client_handle, u32 desired_batt_voltage,
 		return rc;
 	}
 
-	iif (rep.result != BATTERY_MODIFICATION_SUCCESSFUL) {
+	if (rep.result != BATTERY_MODIFICATION_SUCCESSFUL) {
 		pr_err("%s: ERROR. modify client failed. result = %u\n",
 		       __func__, rep.result);
 		return -EIO;

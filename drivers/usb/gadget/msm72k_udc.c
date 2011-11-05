@@ -45,7 +45,6 @@
 #include <mach/clk.h>
 #include <linux/uaccess.h>
 #include <linux/wakelock.h>
-#include <linux/irq.h>
 
 static const char driver_name[] = "msm72k_udc";
 
@@ -283,27 +282,6 @@ static ssize_t print_switch_state(struct switch_dev *sdev, char *buf)
 #define USB_WALL_CHARGER_MASK 0x0c00
 static inline enum chg_type usb_get_chg_type(struct usb_info *ui)
 {
-#if 0
-	unsigned long usb_portsc_v = 0;
-	usb_portsc_v = readl(USB_PORTSC);
-	printk(KERN_ERR "usb_portsc 0x%x",usb_portsc_v);
-	if(USB_CHARGER_MASK & usb_portsc_v)
-	{
-		update_usb_to_gui(2);
-		return USB_CHG_TYPE__SDP;
-	}
-	else if(WALL_CHARGER_MASK & usb_portsc_v)
-	{
-		update_usb_to_gui(3);
-		return USB_CHG_TYPE__WALLCHARGER;
-	}
-	else if(USB_WALL_CHARGER_MASK & usb_portsc_v)
-	{
-		update_usb_to_gui(3);
-		return USB_CHG_TYPE__WALLCHARGER;
-	}
-
-#endif
 	if ((readl(USB_PORTSC) & PORTSC_LS) == PORTSC_LS)
 	{
 		update_usb_to_gui(3);
@@ -465,7 +443,6 @@ static void usb_chg_detect(struct work_struct *w)
 	 * when wallcharger is attached. To allow suspend pc, release the
 	 * wakelock which will be re-acquired for any sub-sequent usb interrupts
 	 * */
-extern int get_charging_state(void);
 	if (temp == USB_CHG_TYPE__WALLCHARGER) {
 		pm_runtime_put_sync(&ui->pdev->dev);
 		wake_unlock(&ui->wlock);
@@ -1553,6 +1530,8 @@ static void usb_do_work(struct work_struct *w)
 
 				dev_dbg(&ui->pdev->dev,
 					"msm72k_udc: ONLINE -> OFFLINE\n");
+
+				update_usb_to_gui(0);
 
 				atomic_set(&ui->running, 0);
 				atomic_set(&ui->remote_wakeup, 0);
@@ -2674,7 +2653,7 @@ static struct dev_pm_ops msm72k_udc_dev_pm_ops = {
 static struct platform_driver usb_driver = {
 	.probe = msm72k_probe,
 	.driver = { .name = "msm_hsusb",
-		    .pm = &msm72k_udc_dev_pm_ops, },
+	.pm = &msm72k_udc_dev_pm_ops, },
 };
 
 static int __init init(void)
