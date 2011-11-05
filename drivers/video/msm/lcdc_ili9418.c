@@ -186,111 +186,6 @@ static __inline void SendByte( unsigned char Byte)
     }
 }
 
-static void SendStartByte( unsigned char RW, unsigned char RS)
-{
-#define LCD_DEV_ID(v) (v<<2)
-#define LCD_RS(v)     (v<<1)
-#define LCD_RW(v)     (v<<0)
-
-    unsigned char StartByte = 0x70;
-    StartByte |= (LCD_DEV_ID(0) | LCD_RS(RS) | LCD_RW(RW)); 
-    SendByte( StartByte);
-    
-}
-
-static void SendIndex( unsigned short Index)
-{
-    SendStartByte( 0, 0);
-    SendByte( (Index>>8));
-    SendByte( (Index&0xFF));
-}
-
-static void SendData( unsigned short Data)
-{
-    SendStartByte( 0, 1);
-    SendByte( (Data>>8));
-    SendByte( (Data&0xFF));
-}
-
-static void SetIndex( unsigned char Index)
-{
-    LCD_CS( 0);
-    spi_delay( 1 );
-    SendStartByte( 0, 0);
-    SendByte( Index);
-    spi_delay( 1 );
-    LCD_CS( 1);
-}
-
-static void SetData( unsigned short Data)
-{
-    LCD_CS( 0);
-    spi_delay( 1);
-    SendStartByte( 0, 1);
-    SendByte( Data);
-    spi_delay( 1);
-    LCD_CS( 1);
-}
-
-static void WriteByte( unsigned char Value)
-{
-	unsigned long	Shift;
-	unsigned long	Cnt;
-	unsigned char	Byte;
-	unsigned char	A0;
-
-	spi_delay( 5);
-
-	A0 = Value >> 8;
-	Byte = Value & 0xFF;
-
-	LCD_SCL( 0);
-	if (A0)
-	{
-		LCD_SI( 1);
-	}
-	else
-	{
-		LCD_SI(0);
-	}
-	spi_delay( 5);
-	LCD_SCL( 1);
-	spi_delay( 5);
-	
-	Shift = 0x80;
-	for (Cnt = 0; Cnt < 8; Cnt++)
-	{
-		LCD_SCL(0);
-		if (Byte&Shift)
-		{
-			LCD_SI(1);
-		}
-		else
-		{
-			LCD_SI( 0);
-		}
-		Shift = Shift >> 1;
-		spi_delay( 5);
-		LCD_SCL(1);
-		spi_delay(5);
-	}
-	LCD_SCL(0);	  
-	spi_delay( 5);
-}
-
-
-static void LcdSend(unsigned char Value)
-{
-  	
-    LCD_CS(0);
-    spi_delay(5);
-    WriteByte( Value);
-    spi_delay( 5);
-    LCD_CS( 1);
-    spi_delay(5);
-}
-
-
 static void LCD_ILI9481_CMD(unsigned char cmd)
 {
 	LCD_CS(0);
@@ -364,8 +259,6 @@ static void ili9325sim_disp_powerup(void)
 
 static void ili9325sim_init(void)
 {
-	unsigned int i;
-	unsigned char pid;
 	printk("+ili9481_init\r\n");
 
 	LCD_CS(1);
@@ -417,13 +310,8 @@ static void ili9325sim_init(void)
 	LCD_ILI9481_INDEX(0x00);
 	LCD_ILI9481_INDEX(0x20);
 
-//	LCD_ILI9481_CMD(0xC6);
-//	LCD_ILI9481_INDEX(0x80);
-
-
 	LCD_ILI9481_CMD(0x3A);
 	LCD_ILI9481_INDEX(0x66);
-
 
 	LCD_ILI9481_CMD(0xC8);
 	LCD_ILI9481_INDEX(0x00);
@@ -441,9 +329,7 @@ static void ili9325sim_init(void)
 
 	LCD_ILI9481_CMD(0x0B);
 	LCD_ILI9481_INDEX(0x00);
-	LCD_ILI9481_INDEX(0x80);
-
-	
+	LCD_ILI9481_INDEX(0x80);	
 
 	LCD_ILI9481_CMD(0xF0);
 	LCD_ILI9481_INDEX(0x08);
@@ -453,8 +339,7 @@ static void ili9325sim_init(void)
 	
 	LCD_ILI9481_CMD(0xF3);
 	LCD_ILI9481_INDEX(0x00);
-	LCD_ILI9481_INDEX(0x2A);
-	
+	LCD_ILI9481_INDEX(0x2A);	
 
 	LCD_ILI9481_CMD(0x36);
 	LCD_ILI9481_INDEX(0x0A);
@@ -477,8 +362,6 @@ static void ili9325sim_disp_on(void)
 
 int lcdc_ili9325sim_panel_on(struct platform_device *pdev)
 {
-
-	
 	if (!ili9325sim_state.disp_initialized) {
 		/* Configure reset GPIO that drives DAC */
 		lcdc_ili9325sim_pdata->panel_config_gpio(1);
@@ -502,8 +385,8 @@ static int lcdc_ili9325sim_panel_off(struct platform_device *pdev)
 		lcdc_ili9325sim_pdata->panel_config_gpio(0);
 		ili9325sim_state.display_on = FALSE;
 		ili9325sim_state.disp_initialized = FALSE;
+		printk("lcdc_ili9325sim_panel_off***\r\n");
 	}
-	printk("lcdc_ili9325sim_panel_off ***\r\n");
 	return 0;
 }
 
@@ -513,7 +396,7 @@ static void lcdc_ili9325sim_set_backlight(struct msm_fb_data_type *mfd)
 	bool panel_on = mfd->panel_power_on;
 	int bl_lv = mfd->bl_level;
 
-	printk("bl_lv %d bl_on %d panel_on %d\n", bl_lv, bl_on, panel_on);
+	//printk("bl_lv %d bl_on %d panel_on %d\n", bl_lv, bl_on, panel_on);
 	if (bl_lv && panel_on) {
 		if (!bl_on) {
 			msleep(200);
@@ -521,7 +404,6 @@ static void lcdc_ili9325sim_set_backlight(struct msm_fb_data_type *mfd)
 			bl_on = true;
 		}
 		ChargePumpSetDispLightLv(bl_lv);
-		// ChargePumpTest();
 	} else {
 		ChargePumpPowerOff();
 		bl_on = false;
@@ -530,8 +412,6 @@ static void lcdc_ili9325sim_set_backlight(struct msm_fb_data_type *mfd)
 
 static int __init ili9325sim_probe(struct platform_device *pdev)
 {	
-	
-
 	if (pdev->id == 0) {
 		lcdc_ili9325sim_pdata = pdev->dev.platform_data;
 		return 0;
@@ -567,7 +447,6 @@ static int __init lcdc_ili9325sim_panel_init(void)
 	struct msm_panel_info *pinfo;
 	uint32 lcdc_ns ;
 	unsigned char *msm_clock_base;
-
 
 	ret = platform_driver_register(&this_driver);
 	if (ret)
@@ -610,4 +489,3 @@ static int __init lcdc_ili9325sim_panel_init(void)
 }
 
 module_init(lcdc_ili9325sim_panel_init);
-

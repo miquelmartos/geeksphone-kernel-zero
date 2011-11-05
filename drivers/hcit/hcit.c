@@ -173,14 +173,11 @@ static int hcit_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, un
         pmic_set_led_intensity(LED_KEYPAD, PMIC_LED_LCD__LEVEL0);
         break;
     case HCIT_IOCTL_VIB_ON:
-        //printk("[HCIT] HCIT_IOControl : HCIT_IOCTL_VIB_ON \r\n");
         {
             int time_ms;
             
             time_ms = *((int*)arg);
          
-            //printk("[HCIT] HCIT_IOControl : HCIT_IOCTL_VIB_ON time_ms<%d>\r\n", time_ms);
-
             pmic_vib_mot_set_volt(VIBRATOR_MOTOR_ON_VOLT);
             if( time_ms > 0)
             {
@@ -190,7 +187,6 @@ static int hcit_ioctl(struct inode *ino, struct file *filp, unsigned int cmd, un
         }
         break;
     case HCIT_IOCTL_VIB_OFF:
-        //printk("[HCIT] HCIT_IOControl : HCIT_IOCTL_VIB_OFF\r\n");
         pmic_vib_mot_set_volt(VIBRATOR_MOTOR_OFF_VOLT);
         break;
     case HCIT_IOCTL_CAMERA_FLASHLED_ON:
@@ -241,8 +237,6 @@ static unsigned bt_config_power_on[] = {
 	GPIO_CFG(70, 2, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),	/* PCM_SYNC */
 	GPIO_CFG(71, 2, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),	/* PCM_CLK */
 	GPIO_CFG(83, 0, GPIO_CFG_INPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),	/* HOST_WAKE */
-	//GPIO_CFG(20, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-	//GPIO_CFG(94, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
 };
 static unsigned bt_config_power_off[] = {
 	GPIO_CFG(42, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),	/* WAKE */
@@ -255,8 +249,6 @@ static unsigned bt_config_power_off[] = {
 	GPIO_CFG(70, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),	/* PCM_SYNC */
 	GPIO_CFG(71, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),	/* PCM_CLK */
 	GPIO_CFG(83, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),	/* HOST_WAKE */
-	//GPIO_CFG(20, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-	//GPIO_CFG(94, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
 };
 
 static int bluetooth_power(int on)
@@ -305,6 +297,7 @@ static int bluetooth_power(int on)
 
 		printk(KERN_ERR "BlueZ required power up * QCOM\r\n");
 		gpio_direction_output(94,0);
+		msleep(100);
 		gpio_direction_output(20,0);
 		msleep(1);
 		printk(KERN_ERR "BlueZ required power up * QCOM delay 1ms\r\n");
@@ -335,7 +328,9 @@ static int bluetooth_power(int on)
 		}
 		printk(KERN_ERR "BlueZ required power down * QCOM\r\n");
 		gpio_direction_output(94,0);
+		msleep(100);
 		gpio_direction_output(20,0);
+		msleep(100);
 	}
 	return 0;
 }

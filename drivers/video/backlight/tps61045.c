@@ -31,18 +31,13 @@ static TpsPumpRes_t TpsRes = {
 static DEFINE_SPINLOCK(atom_lock);
 
 extern struct gpio_chip *gpio2chip(unsigned int gpio);
-/*extern void *msm_gpio_get_regs(struct gpio_chip *chip);
-extern void msm_gpio_set_bit(unsigned n, void *regs);
-extern void msm_gpio_clr_bit(unsigned n, void *regs);*/
 
 static void Tpsc(TpsPumpRes_t *pstRes, u32 n, bool Dir) {
-    //void *regs;
     struct gpio_chip * chip;
     unsigned long irq_flags;
     u32 i, offset, delay, loops;
     
     chip = gpio2chip(pstRes->Id);
-    //regs = msm_gpio_get_regs(chip);
     offset = pstRes->Id - chip->base;
     delay = Dir ? 20 : 200;
     
@@ -53,14 +48,11 @@ static void Tpsc(TpsPumpRes_t *pstRes, u32 n, bool Dir) {
     loops *= delay;
     for (i = 0; i < n; i++) {
         gpio_direction_output(pstRes->Id, 1);
-        //msm_gpio_set_bit(offset, regs);
         // delay 1us
         gpio_direction_output(pstRes->Id, 0);
-        //msm_gpio_clr_bit(offset, regs);
         __delay(loops);
     }
     gpio_direction_output(pstRes->Id, 1);
-    //msm_gpio_set_bit(offset, regs);
     spin_unlock_irqrestore(&atom_lock, irq_flags);
 
     udelay(1000);
@@ -78,7 +70,7 @@ uint Tps61045Lv(uint Lv) {
 void Tps61045Set(TpsPumpRes_t *pstRes) {
     uint Delta;
 
-    printk("CurLv:%d, DesLv:%d\n", pstRes->CurLv, pstRes->DesLv);
+    //printk("CurLv:%d, DesLv:%d\n", pstRes->CurLv, pstRes->DesLv);
 
     if (pstRes->DesLv > pstRes->CurLv) {
         Delta = pstRes->DesLv - pstRes->CurLv;
@@ -201,4 +193,3 @@ void ChargePumpTest(void) {
     Tpsc(&TpsRes, 2, false);
 }
 EXPORT_SYMBOL(ChargePumpTest);
-

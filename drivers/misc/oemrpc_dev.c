@@ -1,4 +1,4 @@
-#define DEBUG  1
+#define DEBUG  0
 #include <linux/earlysuspend.h>
 #include <linux/err.h>
 #include <linux/module.h>
@@ -92,13 +92,12 @@ void set_data_to_arm9(int id, char *in,int insize)
 EXPORT_SYMBOL(set_data_to_arm9);
 #define TEST_RPC_CLIENT_OEM
 #ifdef TEST_RPC_CLIENT_OEM
-void get_version_from_arm9()
+void get_version_from_arm9(void)
 {
 
 
 	struct oem_rapi_client_streaming_func_arg arg;
 	struct oem_rapi_client_streaming_func_ret ret;
-	char *input;
 	char output[128];
 	uint32_t out_len = 128;
 	int ret_val = 0;
@@ -124,15 +123,13 @@ void get_version_from_arm9()
 	}while(0);
 }
 EXPORT_SYMBOL(get_version_from_arm9);
-void set_version_to_arm9()
+void set_version_to_arm9(void)
 {
 
 
 	struct oem_rapi_client_streaming_func_arg arg;
 	struct oem_rapi_client_streaming_func_ret ret;
 	char *input;
-	char output[128];
-	uint32_t out_len;
 	int ret_val = 0;
 	do	
 	{
