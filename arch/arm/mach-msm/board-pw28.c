@@ -94,39 +94,6 @@
 /* Using upper 1/2MB of Apps Bootloader memory*/
 #define MSM_PMEM_AUDIO_START_ADDR	0x80000ul
 
-
-
-#ifdef SH8138U
-#define MANU_NAME   "Sharp Corporation"
-#define PRUD_NAME   "SH8138U"
-#define MASS_STORAGE_NAME   "Sharp"
-#define VID                   0x1E0E
-#define PID                   0x9403
-#define ADBFN             0xA
-#endif
-
-#ifdef Haier
-
-#ifdef msm7627_ffa
-#define MANU_NAME   "Haier"
-#define MASS_STORAGE_NAME   "Haier"
-#define PRUD_NAME   "HW-N6W"
-#define VID                   0x05C6
-#define PID                   0x9018
-#define ADBFN             0x1A
-#endif
-
-#ifdef msm7627_evdo
-#define MANU_NAME   "Haier"
-#define MASS_STORAGE_NAME   "Haier"
-#define PRUD_NAME   "HE-N6E"
-#define VID                   0x05C6
-#define PID                   0x9018
-#define ADBFN             0x1A
-#endif
-
-#else   //Haier
-
 #ifdef msm7627_ffa
 #define MANU_NAME   "SIMCOM"
 #define MASS_STORAGE_NAME   "SIMCOM"
@@ -135,41 +102,6 @@
 #define PID                   0x9018
 #define ADBFN             0x1A
 #endif
-
-#ifdef msm7627_evdo
-#define MANU_NAME   "SIMCOM"
-#define MASS_STORAGE_NAME   "SIMCOM"
-#define PRUD_NAME   "PE28"
-#define VID                   0x05C6
-#define PID                   0x9018
-#define ADBFN             0x1A
-#endif
-
-#endif  //Haier
-
-
-
-#ifdef msm7627_plumcu
-#define MANU_NAME   "Sharp Corporation"
-#define PRUD_NAME   "PLUMCU"
-#define MASS_STORAGE_NAME   "Sharp"
-#define VID                   0x1E0E
-#define PID                   0x9403
-#define ADBFN             0xA
-#endif
-
-#ifdef SH8198U
-#define MANU_NAME   "Sharp Corporation"
-#define PRUD_NAME   "SH8198U"
-#define MASS_STORAGE_NAME   "Sharp"
-#define VID                   0x1E0E
-#define PID                   0x9403
-#define ADBFN             0xA
-#endif
-
-
-
-
 
 static struct resource smc91x_resources[] = {
 	[0] = {
@@ -1287,8 +1219,6 @@ static int synaptics_power(int on) {
     if (!vreg) {
 #if defined(msm7627_ffa)
         vreg = vreg_get(NULL, "gp4");
-#elif defined(msm7627_evdo)
-        vreg = vreg_get(NULL, "gp2");
 #else
         vreg = NULL;
 #endif
