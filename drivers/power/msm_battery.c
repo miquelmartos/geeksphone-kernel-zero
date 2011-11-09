@@ -67,7 +67,7 @@
 #define BATTERY_CB_ID_ALL_ACTIV		1
 #define BATTERY_CB_ID_LOW_VOL		2
 
-#define BATTERY_LOW 		3250
+#define BATTERY_LOW 		3267
 #define BATTERY_HIGH  		4300
 
 #define USB 2
@@ -380,7 +380,7 @@ static enum power_supply_property msm_batt_power_props[] = {
 
 	#define CAPACITY_PERCENTAGE(curV, vL, pL, vH, pH) (pL+((pH-pL)*(curV-vL)*100/(vH-vL))/100)
 
-	static u32 msm_batt_capacity_cust(u32 current_voltage);
+	static u32 calculate_capacity(u32 current_voltage);
 #endif
 
 extern void request_suspend_state(suspend_state_t new_state);
@@ -545,7 +545,7 @@ static void msm_batt_update_psy_status(void)
 	}
 
 	#ifdef CONFIG_SIMCUST_BATTERY_PERCENT_FOR_PE28
-		msm_batt_capacity_cust(battery_voltage);
+		calculate_capacity(battery_voltage);
 	#endif    
 
 	if (charger_status == msm_batt_info.charger_status &&
@@ -1345,7 +1345,7 @@ static u32 msm_batt_capacity(u32 current_voltage)
 }
 
 #ifdef CONFIG_SIMCUST_BATTERY_PERCENT_FOR_PE28
-static u32 msm_batt_capacity_cust(u32 current_voltage)
+static u32 calculate_capacity(u32 current_voltage)
 {
     static u32 once = 0;
     static u32 delay = 0;
@@ -1354,76 +1354,139 @@ static u32 msm_batt_capacity_cust(u32 current_voltage)
 
     static u32 pre_status = CHARGER_TYPE_NONE;
     u32 cur_status = msm_batt_info.charger_type;
-   
-    if(CHARGER_TYPE_USB_PC != cur_status && CHARGER_TYPE_USB_WALL!= cur_status)
+
+    //Control de carga completa
+	if(CHARGER_TYPE_USB_PC != cur_status && CHARGER_TYPE_USB_WALL!= cur_status)
+	{
+		if(current_voltage >= BATTERY_HIGH_CHG)
+		{
+			cur_percentage = 100;
+		}
+	}
+	else
+	{
+		if(current_voltage >= BATTERY_HIGH)
+		{
+			cur_percentage = 100;
+		}
+	}
+	if(cur_percentage == 100)
+	{
+		//Si procede, se indica que la bateria esta llena
+		if(msm_batt_info.batt_status != POWER_SUPPLY_STATUS_FULL)
+			rep_batt_chg.v1.battery_level = BATTERY_LEVEL_FULL;
+	}
+    else //Control fuera de la carga completa.
     {
-    	if (current_voltage <= BATTERY_LEVEL_0)
-    		cur_percentage =  BATTERY_PERCENT_0;
-    	else if ((BATTERY_LEVEL_0 < current_voltage ) && (current_voltage <= BATTERY_LEVEL_1))
-    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_LEVEL_0, BATTERY_PERCENT_0,BATTERY_LEVEL_1,BATTERY_PERCENT_1);
-    	else if ((BATTERY_LEVEL_1 < current_voltage ) && (current_voltage <= BATTERY_LEVEL_2))
-    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_LEVEL_1, BATTERY_PERCENT_1,BATTERY_LEVEL_2,BATTERY_PERCENT_2);
-    	else if ((BATTERY_LEVEL_2 < current_voltage ) && (current_voltage <= BATTERY_LEVEL_3))
-    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_LEVEL_2, BATTERY_PERCENT_2,BATTERY_LEVEL_3,BATTERY_PERCENT_3);
-    	else if ((BATTERY_LEVEL_3 < current_voltage ) && (current_voltage <= BATTERY_LEVEL_4))
-    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_LEVEL_3, BATTERY_PERCENT_3,BATTERY_LEVEL_4,BATTERY_PERCENT_4);
-    	else if ((BATTERY_LEVEL_4 < current_voltage ) && (current_voltage <=  BATTERY_LEVEL_5))
-    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_LEVEL_4, BATTERY_PERCENT_4,BATTERY_LEVEL_5,BATTERY_PERCENT_5);
-    	else
-    		cur_percentage = BATTERY_PERCENT_5;
-    }
-    else
-    {
-    	if (current_voltage <= BATTERY_CHG_LEVEL_0)
-    		cur_percentage = BATTERY_PERCENT_0;
-    	else if ((BATTERY_CHG_LEVEL_0 < current_voltage ) && (current_voltage <= BATTERY_CHG_LEVEL_1))
-    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_CHG_LEVEL_0, BATTERY_PERCENT_0,BATTERY_CHG_LEVEL_1,BATTERY_PERCENT_1);
-    	else if ((BATTERY_CHG_LEVEL_1 < current_voltage ) && (current_voltage <= BATTERY_CHG_LEVEL_2))
-    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_CHG_LEVEL_1, BATTERY_PERCENT_1,BATTERY_CHG_LEVEL_2,BATTERY_PERCENT_2);
-    	else if ((BATTERY_CHG_LEVEL_2 < current_voltage ) && (current_voltage <= BATTERY_CHG_LEVEL_3))
-    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_CHG_LEVEL_2, BATTERY_PERCENT_2,BATTERY_CHG_LEVEL_3,BATTERY_PERCENT_3);
-    	else if ((BATTERY_CHG_LEVEL_3 < current_voltage ) && (current_voltage <= BATTERY_CHG_LEVEL_4))
-    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_CHG_LEVEL_3, BATTERY_PERCENT_3,BATTERY_CHG_LEVEL_4,BATTERY_PERCENT_4);
-    	else if ((BATTERY_CHG_LEVEL_4 < current_voltage ) && (current_voltage <=  BATTERY_CHG_LEVEL_5))
-    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_CHG_LEVEL_4, BATTERY_PERCENT_4,BATTERY_CHG_LEVEL_5,BATTERY_PERCENT_5);
-    	else
-    		cur_percentage = BATTERY_PERCENT_5;
-    }
+		//Si procede se cambia el estado de carga de la batería
+		if(msm_batt_info.batt_status == POWER_SUPPLY_STATUS_FULL)
+		{
+			/* Llegado a éste punto sólo puede ser una descarga, en caso de no serlo,			
+			   indicaría el modo de carga por USB o por AC
+  			*/ 
+			msm_batt_info.batt_status = POWER_SUPPLY_STATUS_DISCHARGING;
+			rep_batt_chg.v1.battery_level = BATTERY_LEVEL_GOOD;
+
+			//Se indica el estado de carga
+			if(msm_batt_info.current_chg_source == USB_CHG)
+				update_usb_to_gui(USB);
+			else if(msm_batt_info.current_chg_source == AC_CHG)
+				update_usb_to_gui(AC);
+			else
+				update_usb_to_gui(NA); //Sin carga
+		}
+		//Se controla el caso de 0%
+		if (current_voltage <= BATTERY_LOW) 
+		{
+			cur_percentage = 0;
+		} 
+		else //Se controla el caso de 100%
+		{
+			if(CHARGER_TYPE_USB_PC != cur_status && CHARGER_TYPE_USB_WALL!= cur_status)
+			{
+			    if (current_voltage >=  BATTERY_HIGH_CHG)
+				cur_percentage = 100;
+			}
+			else
+			{
+				if (current_voltage >=  BATTERY_HIGH)
+					cur_percentage = 100;
+			}
+			if(cur_percentage != 100)
+			{
+				//Se realiza el cálculo para el resto de porcentajes
+				if(CHARGER_TYPE_USB_PC != cur_status && CHARGER_TYPE_USB_WALL!= cur_status)
+				{
+					if (current_voltage <= BATTERY_LEVEL_0)
+						cur_percentage =  BATTERY_PERCENT_0;
+					else if ((BATTERY_LEVEL_0 < current_voltage ) && (current_voltage <= BATTERY_LEVEL_1))
+						cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_LEVEL_0, BATTERY_PERCENT_0,BATTERY_LEVEL_1,BATTERY_PERCENT_1);
+					else if ((BATTERY_LEVEL_1 < current_voltage ) && (current_voltage <= BATTERY_LEVEL_2))
+						cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_LEVEL_1, BATTERY_PERCENT_1,BATTERY_LEVEL_2,BATTERY_PERCENT_2);
+					else if ((BATTERY_LEVEL_2 < current_voltage ) && (current_voltage <= BATTERY_LEVEL_3))
+						cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_LEVEL_2, BATTERY_PERCENT_2,BATTERY_LEVEL_3,BATTERY_PERCENT_3);
+					else if ((BATTERY_LEVEL_3 < current_voltage ) && (current_voltage <= BATTERY_LEVEL_4))
+						cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_LEVEL_3, BATTERY_PERCENT_3,BATTERY_LEVEL_4,BATTERY_PERCENT_4);
+					else if ((BATTERY_LEVEL_4 < current_voltage ) && (current_voltage <=  BATTERY_LEVEL_5))
+						cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_LEVEL_4, BATTERY_PERCENT_4,BATTERY_LEVEL_5,BATTERY_PERCENT_5);
+					else 
+						cur_percentage = BATTERY_PERCENT_5;
+				}
+				else
+				{
+					if (current_voltage <= BATTERY_CHG_LEVEL_0)
+						cur_percentage = BATTERY_PERCENT_0;
+					else if ((BATTERY_CHG_LEVEL_0 < current_voltage ) && (current_voltage <= BATTERY_CHG_LEVEL_1))
+						cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_CHG_LEVEL_0, BATTERY_PERCENT_0,BATTERY_CHG_LEVEL_1,BATTERY_PERCENT_1);
+					else if ((BATTERY_CHG_LEVEL_1 < current_voltage ) && (current_voltage <= BATTERY_CHG_LEVEL_2))
+						cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_CHG_LEVEL_1, BATTERY_PERCENT_1,BATTERY_CHG_LEVEL_2,BATTERY_PERCENT_2);
+					else if ((BATTERY_CHG_LEVEL_2 < current_voltage ) && (current_voltage <= BATTERY_CHG_LEVEL_3))
+						cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_CHG_LEVEL_2, BATTERY_PERCENT_2,BATTERY_CHG_LEVEL_3,BATTERY_PERCENT_3);
+					else if ((BATTERY_CHG_LEVEL_3 < current_voltage ) && (current_voltage <= BATTERY_CHG_LEVEL_4))
+						cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_CHG_LEVEL_3, BATTERY_PERCENT_3,BATTERY_CHG_LEVEL_4,BATTERY_PERCENT_4);
+					else if ((BATTERY_CHG_LEVEL_4 < current_voltage ) && (current_voltage <=  BATTERY_CHG_LEVEL_5))
+						cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_CHG_LEVEL_4, BATTERY_PERCENT_4,BATTERY_CHG_LEVEL_5,BATTERY_PERCENT_5);
+					else	
+					cur_percentage = BATTERY_PERCENT_5;
+				}
+			}
+		}
+	}
 
     if(0 == once)
     {
-        pre_percentage = cur_percentage;
-        once = 1;
+		pre_percentage = cur_percentage;
+		once = 1;
     }
 
     if(pre_status != cur_status)
     {
-        delay  = 0;
+		delay  = 0;
     }
 
     if( (abs(cur_percentage - pre_percentage) > 6) && (delay < 0))
     {   //No rise no drop
-        delay++;
-        cur_percentage = pre_percentage;
+		delay++;
+		cur_percentage = pre_percentage;
     }
     else 
     {
-        delay  = 0;
+		delay  = 0;
 
-        if(CHARGER_TYPE_USB_PC != cur_status && CHARGER_TYPE_USB_WALL!= cur_status)
-        {  //Can only drop
-           cur_percentage = (cur_percentage < pre_percentage) ? cur_percentage : pre_percentage;
-           pre_percentage = cur_percentage ;
-        }
-        else 
-        {  //Can only rise
-           cur_percentage = (cur_percentage > pre_percentage) ? cur_percentage : pre_percentage;
-           pre_percentage = cur_percentage ;
-        }
+		if(CHARGER_TYPE_USB_PC != cur_status && CHARGER_TYPE_USB_WALL!= cur_status)
+		{  //Can only drop
+		   cur_percentage = (cur_percentage < pre_percentage) ? cur_percentage : pre_percentage;
+		   pre_percentage = cur_percentage ;
+		}
+		else 
+		{  //Can only rise
+		   cur_percentage = (cur_percentage > pre_percentage) ? cur_percentage : pre_percentage;
+		   pre_percentage = cur_percentage ;
+		}
     }
 
     pre_status = cur_status;
-    return cur_percentage;      
+    return cur_percentage;
 }
 #endif
 
@@ -1615,7 +1678,7 @@ static int __devinit msm_batt_probe(struct platform_device *pdev)
 	msm_batt_info.voltage_min_design = pdata->voltage_min_design;
 	msm_batt_info.batt_technology = pdata->batt_technology;
 #ifdef CONFIG_SIMCUST_BATTERY_PERCENT_FOR_PE28
-	msm_batt_info.calculate_capacity = msm_batt_capacity_cust;
+	msm_batt_info.calculate_capacity = calculate_capacity;
 #else
 	msm_batt_info.calculate_capacity = pdata->calculate_capacity;
 #endif
