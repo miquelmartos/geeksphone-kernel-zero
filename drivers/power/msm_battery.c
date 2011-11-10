@@ -68,7 +68,7 @@
 #define BATTERY_CB_ID_LOW_VOL		2
 
 #define BATTERY_LOW 		3267
-#define BATTERY_HIGH  		4300
+#define BATTERY_HIGH  		4160
 
 #define USB 2
 #define AC  1

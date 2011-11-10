@@ -750,6 +750,8 @@ static void msm_otg_put_suspend(struct msm_otg *dev)
 {
 #ifdef CONFIG_PM_RUNTIME
 	pm_runtime_put_sync(dev->otg.dev);
+	if (!atomic_read(&dev->in_lpm))
+		pm_runtime_get_sync(dev->otg.dev);
 #else
 	msm_otg_suspend(dev);
 #endif
@@ -1396,6 +1398,22 @@ static void msm_otg_sm_work(struct work_struct *w)
 
 	switch (state) {
 	case OTG_STATE_UNDEFINED:
+
+		/*
+		 * We can come here when LPM fails with wall charger
+		 * connected. Change the state to B_PERIPHERAL and
+		 * schedule the work which takes care of resetting the
+		 * PHY and putting the hardware in low power mode.
+		 */
+		if (atomic_read(&dev->chg_type) ==
+				USB_CHG_TYPE__WALLCHARGER) {
+			spin_lock_irq(&dev->lock);
+			dev->otg.state = OTG_STATE_B_PERIPHERAL;
+			spin_unlock_irq(&dev->lock);
+			work = 1;
+			break;
+		}
+
 		/* Reset both phy and link */
 		otg_reset(&dev->otg, 1);
 
