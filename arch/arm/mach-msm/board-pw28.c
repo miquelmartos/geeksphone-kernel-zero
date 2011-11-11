@@ -92,7 +92,7 @@
 #endif
 
 /* Using upper 1/2MB of Apps Bootloader memory*/
-#define MSM_PMEM_AUDIO_START_ADDR	0x80000ul
+#define MSM_PMEM_AUDIO_START_ADDR	0x1C000ul
 
 #ifdef msm7627_ffa
 #define MANU_NAME   "SIMCOM"
@@ -414,34 +414,23 @@ struct vreg *vreg_3p3;
 static int msm_hsusb_ldo_init(int init)
 {
 	if (init) {
+		/*
+		 * PHY 3.3V analog domain(VDDA33) is powered up by
+		 * an always enabled power supply (LP5900TL-3.3).
+		 * USB VREG default source is VBUS line. Turning
+		 * on USB VREG has a side effect on the USB suspend
+		 * current. Hence USB VREG is explicitly turned
+		 * off here.
+		 */
 		vreg_3p3 = vreg_get(NULL, "usb");
 		if (IS_ERR(vreg_3p3))
 			return PTR_ERR(vreg_3p3);
-		vreg_set_level(vreg_3p3, 3300);
-	} else
+		vreg_enable(vreg_3p3);
+		vreg_disable(vreg_3p3);
 		vreg_put(vreg_3p3);
+	}
 
 	return 0;
-}
-
-static int msm_hsusb_ldo_enable(int enable)
-{
-	static int ldo_status;
-
-	if (!vreg_3p3 || IS_ERR(vreg_3p3))
-		return -ENODEV;
-
-	if (ldo_status == enable)
-		return 0;
-
-	ldo_status = enable;
-
-	pr_info("%s: %d", __func__, enable);
-
-	if (enable)
-		return vreg_enable(vreg_3p3);
-
-	return vreg_disable(vreg_3p3);
 }
 
 static int msm_hsusb_pmic_notif_init(void (*callback)(int online), int init)
@@ -467,7 +456,7 @@ static struct msm_otg_platform_data msm_otg_pdata = {
 	.vbus_power = msm_hsusb_vbus_power,
 #endif
 	.ldo_init		= msm_hsusb_ldo_init,
-	.ldo_enable		= msm_hsusb_ldo_enable,
+	.pclk_required_during_lpm = 1
 };
 
 #ifdef CONFIG_USB_GADGET
@@ -580,6 +569,10 @@ static unsigned int dec_concurrency_table[] = {
 	(DEC4_FORMAT),
 
 	/* Concurrency 6 */
+	(DEC0_FORMAT|(1<<MSM_ADSP_MODE_NONTUNNEL)|(1<<MSM_ADSP_OP_DM)),
+	0, 0, 0, 0,
+
+	/* Concurrency 7 */
 	(DEC0_FORMAT|(1<<MSM_ADSP_MODE_NONTUNNEL)|(1<<MSM_ADSP_OP_DM)),
 	(DEC1_FORMAT|(1<<MSM_ADSP_MODE_NONTUNNEL)|(1<<MSM_ADSP_OP_DM)),
 	(DEC2_FORMAT|(1<<MSM_ADSP_MODE_NONTUNNEL)|(1<<MSM_ADSP_OP_DM)),
@@ -1582,10 +1575,6 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_ANDROID_RAM_CONSOLE
 	&ram_console_device,
 #endif
-
-#if !defined(CONFIG_MSM_SERIAL_DEBUGGER)
-	&msm_device_uart3,
-#endif
 	&msm_device_smd,
 	&msm_device_dmov,
 	&msm_device_nand,
@@ -2194,11 +2183,6 @@ static void __init msm7x2x_init(void)
 		}
 		vreg_enable(vreg_bt);*/
 
-#if defined(CONFIG_MSM_SERIAL_DEBUGGER)
-	msm_serial_debug_init(MSM_UART3_PHYS, INT_UART3,
-			&msm_device_uart3.dev, 1);
-#endif
-
 #if defined(CONFIG_SMC91X)
 	if (machine_is_msm7x25_ffa() || machine_is_msm7x27_ffa()) {
 		smc91x_resources[0].start = 0x98000300;
@@ -2346,6 +2330,14 @@ static void __init pmem_adsp_size_setup(char **p)
 }
 __early_param("pmem_adsp_size=", pmem_adsp_size_setup);
 
+static unsigned pmem_audio_size = MSM_PMEM_AUDIO_SIZE;
+static int __init pmem_audio_size_setup(char *p)
+{
+	pmem_audio_size = memparse(p, NULL);
+	return 0;
+}
+early_param("pmem_audio_size", pmem_audio_size_setup);
+
 static unsigned fb_size = MSM_FB_SIZE;
 static void __init fb_size_setup(char **p)
 {
@@ -2376,11 +2368,19 @@ static void __init msm_msm7x2x_allocate_memory_regions(void)
 			"pmem arena\n", size, addr, __pa(addr));
 	}
 
-	size = MSM_PMEM_AUDIO_SIZE ;
-	android_pmem_audio_pdata.start = MSM_PMEM_AUDIO_START_ADDR ;
-	android_pmem_audio_pdata.size = size;
-	pr_info("allocating %lu bytes (at %lx physical) for audio "
-		"pmem arena\n", size , MSM_PMEM_AUDIO_START_ADDR);
+	size = pmem_audio_size;
+	if (size > 0xE1000) {
+		addr = alloc_bootmem(size);
+		android_pmem_audio_pdata.start = __pa(addr);
+		android_pmem_audio_pdata.size = size;
+		pr_info("allocating %lu bytes at %p (%lx physical) for audio "
+			"pmem arena\n", size, addr, __pa(addr));
+	} else if (size) {
+		android_pmem_audio_pdata.start = MSM_PMEM_AUDIO_START_ADDR;
+		android_pmem_audio_pdata.size = size;
+		pr_info("allocating %lu bytes (at %lx physical) for audio "
+			"pmem arena\n", size , MSM_PMEM_AUDIO_START_ADDR);
+	}
 
 	size = fb_size ? : MSM_FB_SIZE;
 	addr = alloc_bootmem(size);
