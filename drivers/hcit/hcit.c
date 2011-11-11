@@ -297,7 +297,6 @@ static int bluetooth_power(int on)
 
 		printk(KERN_ERR "BlueZ required power up * QCOM\r\n");
 		gpio_direction_output(94,0);
-		msleep(100);
 		gpio_direction_output(20,0);
 		msleep(1);
 		printk(KERN_ERR "BlueZ required power up * QCOM delay 1ms\r\n");
@@ -328,9 +327,7 @@ static int bluetooth_power(int on)
 		}
 		printk(KERN_ERR "BlueZ required power down * QCOM\r\n");
 		gpio_direction_output(94,0);
-		msleep(100);
 		gpio_direction_output(20,0);
-		msleep(100);
 	}
 	return 0;
 }

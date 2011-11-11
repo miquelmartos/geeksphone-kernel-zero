@@ -1532,7 +1532,7 @@ static struct platform_device msm_camera_sensor_mt9d112 = {
 #endif
 
 static struct msm_psy_batt_pdata msm_psy_batt_data = {
-	.voltage_min_design 	= 3250,
+	.voltage_min_design 	= 3200,
 	.voltage_max_design 	= 4300,
 	.avail_chg_sources   	= AC_CHG | USB_CHG ,
 	.batt_technology        = POWER_SUPPLY_TECHNOLOGY_LION,
