@@ -843,10 +843,6 @@ config PLAT_PXA
 
 source arch/arm/mm/Kconfig
 
-config DONT_RESERVE_FROM_MOVABLE_ZONE
-	def_bool y
-	depends on MEMORY_HOTPLUG
-
 config IWMMXT
 	bool "Enable iWMMXt support"
 	depends on CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK
@@ -1219,7 +1215,8 @@ config ARCH_MEMORY_REMOVE
 	depends on MEMORY_HOTPLUG
 
 config DONT_RESERVE_FROM_MOVABLE_ZONE
-	def_bool n
+	def_bool y
+	depends on MEMORY_HOTPLUG
 
 config LEDS
 	bool "Timer and CPU usage LEDs"
