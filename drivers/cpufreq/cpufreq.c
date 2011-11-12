@@ -1897,7 +1897,7 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 	cpufreq_driver = driver_data;
 	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
-	et = sysdev_driver_register(&cpu_sysdev_class,
+	ret = sysdev_driver_register(&cpu_sysdev_class,
 					&cpufreq_sysdev_driver);
 	if (ret)
 		goto err_null_driver;
