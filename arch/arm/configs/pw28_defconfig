@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.32.9
-# Tue Nov  1 17:24:26 2011
+# Sun Nov 13 00:02:08 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -428,7 +428,6 @@ CONFIG_VFP=y
 # Userspace binary formats
 #
 CONFIG_BINFMT_ELF=y
-# CONFIG_CORE_DUMP_DEFAULT_ELF_HEADERS is not set
 CONFIG_HAVE_AOUT=y
 # CONFIG_BINFMT_AOUT is not set
 # CONFIG_BINFMT_MISC is not set
