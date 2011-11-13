@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.32.9
-# Sun Nov 13 00:02:08 2011
+# Sun Nov 13 01:17:00 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -326,7 +326,6 @@ CONFIG_OUTER_CACHE=y
 CONFIG_CACHE_L2X0=y
 CONFIG_ARM_L1_CACHE_SHIFT=5
 # CONFIG_VCM is not set
-# CONFIG_DONT_RESERVE_FROM_MOVABLE_ZONE is not set
 # CONFIG_ARM_ERRATA_411920 is not set
 
 #
