@@ -27,12 +27,14 @@ static DEFINE_MUTEX(clocks_mutex);
 static DEFINE_SPINLOCK(clocks_lock);
 static DEFINE_SPINLOCK(ebi1_vote_lock);
 static LIST_HEAD(clocks);
+struct clk *msm_clocks;
+unsigned msm_num_clocks;
 
 /*
  * Bitmap of enabled clocks, excluding ACPU which is always
  * enabled
  */
-static DECLARE_BITMAP(clock_map_enabled, MAX_NR_CLKS);
+static DECLARE_BITMAP(clock_map_enabled, NR_CLKS);
 static DEFINE_SPINLOCK(clock_map_lock);
 static struct notifier_block axi_freq_notifier_block;
 
@@ -67,23 +69,17 @@ EXPORT_SYMBOL(clk_put);
 
 int clk_enable(struct clk *clk)
 {
-	int ret = 0;
 	unsigned long flags;
-
 	spin_lock_irqsave(&clocks_lock, flags);
-	if (clk->count == 0) {
-		ret = clk->ops->enable(clk->id);
-		if (ret)
-			goto out;
-		BUG_ON(clk->id >= MAX_NR_CLKS);
+	clk->count++;
+	if (clk->count == 1) {
+		clk->ops->enable(clk->id);
 		spin_lock(&clock_map_lock);
 		clock_map_enabled[BIT_WORD(clk->id)] |= BIT_MASK(clk->id);
 		spin_unlock(&clock_map_lock);
 	}
-	clk->count++;
-out:
 	spin_unlock_irqrestore(&clocks_lock, flags);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(clk_enable);
 
@@ -248,9 +244,9 @@ int msm_clock_require_tcxo(unsigned long *reason, int nbits)
 	int ret;
 
 	spin_lock_irqsave(&clock_map_lock, flags);
-	ret = !bitmap_empty(clock_map_enabled, MAX_NR_CLKS);
+	ret = !bitmap_empty(clock_map_enabled, NR_CLKS);
 	if (nbits > 0)
-		bitmap_copy(reason, clock_map_enabled, min(nbits, MAX_NR_CLKS));
+		bitmap_copy(reason, clock_map_enabled, min(nbits, NR_CLKS));
 	spin_unlock_irqrestore(&clock_map_lock, flags);
 
 	return ret;
@@ -291,9 +287,11 @@ void __init msm_clock_init(struct clk *clock_tbl, unsigned num_clocks)
 
 	spin_lock_init(&clocks_lock);
 	mutex_lock(&clocks_mutex);
-	for (n = 0; n < num_clocks; n++) {
-		msm_clk_soc_set_ops(&clock_tbl[n]);
-		list_add_tail(&clock_tbl[n].list, &clocks);
+	msm_clocks = clock_tbl;
+	msm_num_clocks = num_clocks;
+	for (n = 0; n < msm_num_clocks; n++) {
+		msm_clk_soc_set_ops(&msm_clocks[n]);
+		list_add_tail(&msm_clocks[n].list, &clocks);
 	}
 	mutex_unlock(&clocks_mutex);
 
@@ -318,10 +316,8 @@ static int __init clock_late_init(void)
 	struct clk *clk;
 	unsigned count = 0;
 
-	clock_debug_init();
 	mutex_lock(&clocks_mutex);
 	list_for_each_entry(clk, &clocks, list) {
-		clock_debug_add(clk);
 		if (clk->flags & CLKFLAG_AUTO_OFF) {
 			spin_lock_irqsave(&clocks_lock, flags);
 			if (!clk->count) {

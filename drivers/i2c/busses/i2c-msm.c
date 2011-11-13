@@ -84,6 +84,7 @@ struct msm_i2c_dev {
 	int                          rd_acked;
 	int                          one_bit_t;
 	remote_mutex_t               r_lock;
+	remote_spinlock_t            s_lock;
 	int                          suspended;
 	struct mutex                 mlock;
 	struct msm_i2c_platform_data *pdata;
@@ -96,11 +97,21 @@ static void
 msm_i2c_pwr_mgmt(struct msm_i2c_dev *dev, unsigned int state)
 {
 	dev->clk_state = state;
+//	printk("<===PCAM=====> address:%x clk:%x\n", (dev->base+I2C_CLK_CTL), readl(dev->base + I2C_CLK_CTL));
+
 	if (state != 0)
+	{
+		//printk(" <=PCAM=> %s   clk_enable!!!!!\n",__func__);
 		clk_enable(dev->clk);
+	}
 	else
+	{
+		//printk(" <=PCAM=> %s   clk_disable!!!!!\n",__func__);	
 		clk_disable(dev->clk);
+	}
 }
+
+
 
 static void
 msm_i2c_pwr_timer(unsigned long data)
@@ -267,7 +278,7 @@ msm_i2c_poll_writeready(struct msm_i2c_dev *dev)
 		if (!(status & I2C_STATUS_WR_BUFFER_FULL))
 			return 0;
 		if (retries++ > 1000)
-			usleep_range(100, 200);
+			udelay(100);
 	}
 	return -ETIMEDOUT;
 }
@@ -283,7 +294,7 @@ msm_i2c_poll_notbusy(struct msm_i2c_dev *dev)
 		if (!(status & I2C_STATUS_BUS_ACTIVE))
 			return 0;
 		if (retries++ > 1000)
-			usleep_range(100, 200);
+			udelay(100);
 	}
 	return -ETIMEDOUT;
 }
@@ -333,7 +344,7 @@ msm_i2c_recover_bus_busy(struct msm_i2c_dev *dev, struct i2c_adapter *adap)
 		gpio_direction_input(gpio_clk);
 		udelay(5);
 		if (!gpio_get_value(gpio_clk))
-			usleep_range(20, 30);
+			udelay(20);
 		if (!gpio_get_value(gpio_clk))
 			msleep(10);
 		gpio_clk_status = gpio_get_value(gpio_clk);
@@ -356,6 +367,32 @@ msm_i2c_recover_bus_busy(struct msm_i2c_dev *dev, struct i2c_adapter *adap)
 		 status, readl(dev->base + I2C_INTERFACE_SELECT));
 	enable_irq(dev->irq);
 	return -EBUSY;
+}
+
+static void
+msm_i2c_rspin_lock(struct msm_i2c_dev *dev)
+{
+	int gotlock = 0;
+	unsigned long flags;
+	uint32_t *smem_ptr = (uint32_t *)dev->pdata->rmutex;
+	do {
+		remote_spin_lock_irqsave(&dev->s_lock, flags);
+		if (*smem_ptr == 0) {
+			*smem_ptr = 1;
+			gotlock = 1;
+		}
+		remote_spin_unlock_irqrestore(&dev->s_lock, flags);
+	} while (!gotlock);
+}
+
+static void
+msm_i2c_rspin_unlock(struct msm_i2c_dev *dev)
+{
+	unsigned long flags;
+	uint32_t *smem_ptr = (uint32_t *)dev->pdata->rmutex;
+	remote_spin_lock_irqsave(&dev->s_lock, flags);
+	*smem_ptr = 0;
+	remote_spin_unlock_irqrestore(&dev->s_lock, flags);
 }
 
 static int
@@ -386,7 +423,15 @@ msm_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	pm_qos_update_requirement(PM_QOS_CPU_DMA_LATENCY, "msm_i2c",
 					dev->pdata->pm_lat);
 	if (dev->pdata->rmutex) {
-		remote_mutex_lock(&dev->r_lock);
+		/*
+		 * Older modem side uses remote_mutex lock only to update
+		 * shared variable, and newer modem side uses remote mutex
+		 * to protect the whole transaction
+		 */
+		if (dev->pdata->rsl_id[0] == 'S')
+			msm_i2c_rspin_lock(dev);
+		else
+			remote_mutex_lock(&dev->r_lock);
 		/* If other processor did some transactions, we may have
 		 * interrupt pending. Clear it
 		 */
@@ -510,8 +555,8 @@ wait_for_int:
 		}
 		if (dev->err) {
 			dev_err(dev->dev,
-				"(%04x) Error during data xfer (%d)\n",
-				addr, dev->err);
+				"Error during data xfer (%d)\n",
+				dev->err);
 			ret = dev->err;
 			goto out_err;
 		}
@@ -535,8 +580,12 @@ wait_for_int:
 	dev->cnt = 0;
 	spin_unlock_irqrestore(&dev->lock, flags);
 	disable_irq(dev->irq);
-	if (dev->pdata->rmutex)
-		remote_mutex_unlock(&dev->r_lock);
+	if (dev->pdata->rmutex) {
+		if (dev->pdata->rsl_id[0] == 'S')
+			msm_i2c_rspin_unlock(dev);
+		else
+			remote_mutex_unlock(&dev->r_lock);
+	}
 	pm_qos_update_requirement(PM_QOS_CPU_DMA_LATENCY, "msm_i2c",
 					PM_QOS_DEFAULT_VALUE);
 	mod_timer(&dev->pwr_timer, (jiffies + 3*HZ));
@@ -635,7 +684,12 @@ msm_i2c_probe(struct platform_device *pdev)
 
 	clk_enable(clk);
 
-	if (pdata->rmutex) {
+	if (pdata->rmutex && pdata->rsl_id[0] == 'S') {
+		remote_spinlock_id_t rmid;
+		rmid = pdata->rsl_id;
+		if (remote_spin_lock_init(&dev->s_lock, rmid) != 0)
+			pdata->rmutex = 0;
+	} else if (pdata->rmutex) {
 		struct remote_mutex_id rmid;
 		rmid.r_spinlock_id = pdata->rsl_id;
 		rmid.delay_us = 10000000/pdata->clk_freq;
@@ -753,6 +807,8 @@ static int msm_i2c_suspend(struct platform_device *pdev, pm_message_t state)
 		mutex_lock(&dev->mlock);
 		dev->suspended = 1;
 		mutex_unlock(&dev->mlock);
+		gpio_tlmm_config(GPIO_CFG(60, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+		gpio_tlmm_config(GPIO_CFG(61, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
 		del_timer_sync(&dev->pwr_timer);
 		if (dev->clk_state != 0)
 			msm_i2c_pwr_mgmt(dev, 0);
@@ -764,6 +820,8 @@ static int msm_i2c_suspend(struct platform_device *pdev, pm_message_t state)
 static int msm_i2c_resume(struct platform_device *pdev)
 {
 	struct msm_i2c_dev *dev = platform_get_drvdata(pdev);
+	gpio_tlmm_config(GPIO_CFG(60, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_16MA), GPIO_CFG_ENABLE);
+	gpio_tlmm_config(GPIO_CFG(61, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_16MA), GPIO_CFG_ENABLE);
 	dev->suspended = 0;
 	return 0;
 }
@@ -778,6 +836,54 @@ static struct platform_driver msm_i2c_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
+
+
+#if 1//PCAM
+void
+pcam_msm_i2c_pwr_mgmt(struct i2c_adapter *adap, int on)
+{
+//	struct platform_device *pdev = to_platform_device(&msm_i2c_driver); 
+//	struct msm_i2c_dev *dev = platform_get_drvdata(pdev); 
+
+	struct msm_i2c_dev *dev = i2c_get_adapdata(adap);
+
+	
+	if(on)
+	{
+		if (dev->clk_state == 0) 
+		{ 
+			//printk(KERN_WARNING "## [%s:%d] <=PCAM=> clk on,  I2C clock has been off !!\n", __func__, __LINE__); 
+			msm_i2c_pwr_mgmt(dev, 1); 
+		} 
+		
+		/*
+		else  
+			printk(KERN_WARNING "## [%s:%d] <=PCAM=> clk on already, I2C clock has already been on !!\n", __func__, __LINE__); 
+		*/
+	}
+	else
+	{
+		del_timer_sync(&dev->pwr_timer); 
+		if (dev->clk_state != 0) 
+		{ 
+    			//printk(KERN_WARNING "## [%s:%d] <=PCAM=>  clk off, I2C clock hasn't been off !!\n", __func__, __LINE__); 
+			msm_i2c_pwr_mgmt(dev, 0); 
+		} 
+		/*
+		else  
+			printk(KERN_WARNING "## [%s:%d] <=PCAM=>  clk off already, I2C clock has been off !!\n", __func__, __LINE__); 
+		*/
+	}
+
+}
+
+
+EXPORT_SYMBOL(pcam_msm_i2c_pwr_mgmt); 
+#endif//PCAM
+
+
+
+
 
 /* I2C may be needed to bring up other drivers */
 static int __init

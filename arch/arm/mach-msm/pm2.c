@@ -28,25 +28,16 @@
 #include <linux/reboot.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include <linux/memory.h>
 #ifdef CONFIG_HAS_WAKELOCK
 #include <linux/wakelock.h>
 #endif
 #include <mach/msm_iomap.h>
 #include <mach/system.h>
-#ifdef CONFIG_CPU_V7
-#include <asm/pgtable.h>
-#include <asm/pgalloc.h>
-#endif
 #ifdef CONFIG_CACHE_L2X0
 #include <asm/hardware/cache-l2x0.h>
 #endif
 #ifdef CONFIG_VFP
 #include <asm/vfp.h>
-#endif
-
-#ifdef CONFIG_MSM_MEMORY_LOW_POWER_MODE_SUSPEND_DEEP_POWER_DOWN
-#include <mach/msm_migrate_pages.h>
 #endif
 
 #include "smd_private.h"
@@ -60,7 +51,7 @@
 #include "timer.h"
 #include "pm.h"
 #include "spm.h"
-#include "sirc.h"
+#include "proc_comm.h"
 
 /******************************************************************************
  * Debug Definitions
@@ -172,9 +163,6 @@ static ssize_t msm_pm_mode_attr_show(
 	for (i = 0; i < MSM_PM_SLEEP_MODE_NR; i++) {
 		struct kernel_param kp;
 
-		if (msm_pm_sleep_mode_labels[i] == NULL)
-			continue;
-
 		if (strcmp(kobj->name, msm_pm_sleep_mode_labels[i]))
 			continue;
 
@@ -220,9 +208,6 @@ static ssize_t msm_pm_mode_attr_store(struct kobject *kobj,
 
 	for (i = 0; i < MSM_PM_SLEEP_MODE_NR; i++) {
 		struct kernel_param kp;
-
-		if (msm_pm_sleep_mode_labels[i] == NULL)
-			continue;
 
 		if (strcmp(kobj->name, msm_pm_sleep_mode_labels[i]))
 			continue;
@@ -352,6 +337,7 @@ mode_sysfs_add_cleanup:
 		kfree(msm_pm_mode_attr_group[i]);
 		kobject_put(msm_pm_mode_kobjs[i]);
 	}
+
 
 	return ret;
 }
@@ -695,7 +681,7 @@ static struct msm_pm_time_stats {
 };
 
 static uint32_t msm_pm_sleep_limit = SLEEP_LIMIT_NONE;
-static DECLARE_BITMAP(msm_pm_clocks_no_tcxo_shutdown, MAX_NR_CLKS);
+static DECLARE_BITMAP(msm_pm_clocks_no_tcxo_shutdown, NR_CLKS);
 
 /*
  * Add the given time data to the statistics collection.
@@ -765,7 +751,7 @@ static int msm_pm_read_proc
 
 	if (!off) {
 		SNPRINTF(p, count, "Clocks against last TCXO shutdown:\n");
-		for_each_bit(i, msm_pm_clocks_no_tcxo_shutdown, MAX_NR_CLKS) {
+		for_each_bit(i, msm_pm_clocks_no_tcxo_shutdown, NR_CLKS) {
 			clk_name[0] = '\0';
 			msm_clock_get_name(i, clk_name, sizeof(clk_name));
 			SNPRINTF(p, count, "  %s (id=%d)\n", clk_name, i);
@@ -862,7 +848,7 @@ static int msm_pm_write_proc(struct file *file, const char __user *buffer,
 	}
 
 	msm_pm_sleep_limit = SLEEP_LIMIT_NONE;
-	bitmap_zero(msm_pm_clocks_no_tcxo_shutdown, MAX_NR_CLKS);
+	bitmap_zero(msm_pm_clocks_no_tcxo_shutdown, NR_CLKS);
 	local_irq_restore(flags);
 
 	return count;
@@ -969,7 +955,6 @@ static int msm_pm_power_collapse
 	memset(msm_pm_smem_data, 0, sizeof(*msm_pm_smem_data));
 
 	msm_irq_enter_sleep1(true, from_idle, &msm_pm_smem_data->irq_mask);
-	msm_sirc_enter_sleep();
 	msm_gpio_enter_sleep(from_idle);
 
 	msm_pm_smem_data->sleep_time = sleep_delay;
@@ -1170,7 +1155,6 @@ static int msm_pm_power_collapse
 		msm_pm_smem_data->wakeup_reason,
 		msm_pm_smem_data->pending_irqs);
 	msm_gpio_exit_sleep();
-	msm_sirc_exit_sleep();
 
 	smsm_change_state(SMSM_APPS_DEM,
 		DEM_SLAVE_SMSM_WFPI, DEM_SLAVE_SMSM_RUN);
@@ -1218,7 +1202,6 @@ power_collapse_early_exit:
 
 power_collapse_restore_gpio_bail:
 	msm_gpio_exit_sleep();
-	msm_sirc_exit_sleep();
 
 	/* Enter RUN */
 	smsm_change_state(SMSM_APPS_DEM,
@@ -1368,7 +1351,7 @@ void arch_idle(void)
 	int i;
 
 #ifdef CONFIG_MSM_IDLE_STATS
-	DECLARE_BITMAP(clk_ids, MAX_NR_CLKS);
+	DECLARE_BITMAP(clk_ids, NR_CLKS);
 	int64_t t1;
 	static int64_t t2;
 	int exit_stat;
@@ -1436,7 +1419,7 @@ void arch_idle(void)
 	}
 
 #ifdef CONFIG_MSM_IDLE_STATS
-	ret = msm_clock_require_tcxo(clk_ids, MAX_NR_CLKS);
+	ret = msm_clock_require_tcxo(clk_ids, NR_CLKS);
 #elif defined(CONFIG_CLOCK_BASED_SLEEP_LIMIT)
 	ret = msm_clock_require_tcxo(NULL, 0);
 #endif /* CONFIG_MSM_IDLE_STATS */
@@ -1483,7 +1466,7 @@ void arch_idle(void)
 			exit_stat = MSM_PM_STAT_IDLE_POWER_COLLAPSE;
 			msm_pm_sleep_limit = sleep_limit;
 			bitmap_copy(msm_pm_clocks_no_tcxo_shutdown, clk_ids,
-				MAX_NR_CLKS);
+				NR_CLKS);
 		}
 #endif /* CONFIG_MSM_IDLE_STATS */
 	} else if (allow[MSM_PM_SLEEP_MODE_APPS_SLEEP]) {
@@ -1563,12 +1546,12 @@ static int msm_pm_enter(suspend_state_t state)
 	int i;
 
 #ifdef CONFIG_MSM_IDLE_STATS
-	DECLARE_BITMAP(clk_ids, MAX_NR_CLKS);
+	DECLARE_BITMAP(clk_ids, NR_CLKS);
 	int64_t period = 0;
 	int64_t time = 0;
 
 	time = msm_timer_get_sclk_time(&period);
-	ret = msm_clock_require_tcxo(clk_ids, MAX_NR_CLKS);
+	ret = msm_clock_require_tcxo(clk_ids, NR_CLKS);
 #elif defined(CONFIG_CLOCK_BASED_SLEEP_LIMIT)
 	ret = msm_clock_require_tcxo(NULL, 0);
 #endif /* CONFIG_MSM_IDLE_STATS */
@@ -1638,9 +1621,6 @@ static int msm_pm_enter(suspend_state_t state)
 		sleep_limit |= SLEEP_RESOURCE_MEMORY_BIT1;
 #elif defined(CONFIG_MSM_MEMORY_LOW_POWER_MODE_SUSPEND_RETENTION)
 		sleep_limit |= SLEEP_RESOURCE_MEMORY_BIT0;
-#elif defined(CONFIG_MSM_MEMORY_LOW_POWER_MODE_SUSPEND_DEEP_POWER_DOWN)
-		if (get_msm_migrate_pages_status() != MEM_OFFLINE)
-			sleep_limit |= SLEEP_RESOURCE_MEMORY_BIT0;
 #endif
 
 		ret = msm_pm_power_collapse(
@@ -1653,7 +1633,7 @@ static int msm_pm_enter(suspend_state_t state)
 			id = MSM_PM_STAT_SUSPEND;
 			msm_pm_sleep_limit = sleep_limit;
 			bitmap_copy(msm_pm_clocks_no_tcxo_shutdown, clk_ids,
-				MAX_NR_CLKS);
+				NR_CLKS);
 		}
 
 		if (time != 0) {
@@ -1705,11 +1685,13 @@ static void msm_pm_power_off(void)
 		;
 }
 
-static void msm_pm_restart(char str, const char *cmd)
+
+static void msm_pm_restart(char str)
 {
 	msm_rpcrouter_close();
+	printk("send PCOM_RESET_CHIP\n");
 	msm_proc_comm(PCOM_RESET_CHIP, &restart_reason, 0);
-
+	printk("Do Nothing!!\n");
 	for (;;)
 		;
 }
@@ -1717,6 +1699,7 @@ static void msm_pm_restart(char str, const char *cmd)
 static int msm_reboot_call
 	(struct notifier_block *this, unsigned long code, void *_cmd)
 {
+    printk("msm_reboot_call++\n");	
 	if ((code == SYS_RESTART) && _cmd) {
 		char *cmd = _cmd;
 		if (!strcmp(cmd, "bootloader")) {
@@ -1725,6 +1708,12 @@ static int msm_reboot_call
 			restart_reason = 0x77665502;
 		} else if (!strcmp(cmd, "eraseflash")) {
 			restart_reason = 0x776655EF;
+   		} else if (!strcmp(cmd, "reset_rtc")) {
+			restart_reason = 0x776655F0;
+		} else if (!strncmp(cmd, "SDL1", 4)) {
+			restart_reason = 0x53444C31;    //ASCII code of "SDL1"
+		} else if (!strncmp(cmd, "SDL2", 4)) {
+			restart_reason = 0x53444C32;    //ASCII code of "SDL2"
 		} else if (!strncmp(cmd, "oem-", 4)) {
 			unsigned code = simple_strtoul(cmd + 4, 0, 16) & 0xff;
 			restart_reason = 0x6f656d00 | code;
@@ -1760,22 +1749,7 @@ static int __init msm_pm_init(void)
 	struct proc_dir_entry *d_entry;
 #endif
 	int ret;
-#ifdef CONFIG_CPU_V7
-	pgd_t *pc_pgd;
-	pmd_t *pmd;
-
-	/* Page table for cores to come back up safely. */
-	pc_pgd = pgd_alloc(&init_mm);
-	if (!pc_pgd)
-		return -ENOMEM;
-	pmd = pmd_offset(pc_pgd +
-			 pgd_index(virt_to_phys(msm_pm_collapse_exit)),
-			 virt_to_phys(msm_pm_collapse_exit));
-	*pmd = __pmd((virt_to_phys(msm_pm_collapse_exit) & PGDIR_MASK) |
-		     PMD_TYPE_SECT | PMD_SECT_AP_WRITE);
-	flush_pmd_entry(pmd);
-	msm_pm_pc_pgd = virt_to_phys(pc_pgd);
-#endif
+	int id = 0;
 
 	pm_power_off = msm_pm_power_off;
 	arm_pm_restart = msm_pm_restart;
@@ -1839,6 +1813,8 @@ static int __init msm_pm_init(void)
 		d_entry->data = NULL;
 	}
 #endif
+
+	msm_proc_comm(PCOM_CUSTOMER_CMD3, &id, 0);
 
 	return 0;
 }
