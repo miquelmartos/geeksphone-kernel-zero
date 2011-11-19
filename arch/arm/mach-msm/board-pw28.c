@@ -84,11 +84,7 @@
 #define MSM_GPU_PHYS_SIZE	SZ_2M
 #define PMEM_KERNEL_EBI1_SIZE	0x1C000
 /* Using lower 1MB of OEMSBL memory for GPU_PHYS */
-#ifdef CONFIG_RAM_SIZE_512MB
-    #define MSM_GPU_PHYS_START_ADDR	 0x2FE00000ul
-#else
-    #define MSM_GPU_PHYS_START_ADDR	 0xD600000ul
-#endif
+#define MSM_GPU_PHYS_START_ADDR	 0xD600000ul
 #endif
 
 /* Using upper 1/2MB of Apps Bootloader memory*/
