@@ -522,15 +522,6 @@ static void __init analyse_kernel_nv(char *name, int in_qemu)
     if (value == 0) return;
     *value++ = 0;
     if (*name == 0) return;
-
-       if(!strcmp(name,"androidboot.battchg_pause"))
-	   {
-            if (!strcmp(value,"true")) 
-                battchg_pause = 0;
-			 if (!strcmp(value,"clk")) 
-                battchg_pause = 0;
-	   }
-
 }
 
 static void __init analyse_kernel_cmdline(int in_qemu)

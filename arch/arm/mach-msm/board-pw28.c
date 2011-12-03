@@ -125,63 +125,56 @@ static struct platform_device mass_storage_device = {
 	.name           = "usb_mass_storage",
 	.id             = -1,
 	.dev            = {
-	.platform_data          = &usb_mass_storage_pdata,
+		.platform_data          = &usb_mass_storage_pdata,
 	},
 };
 #endif
 
 #ifdef CONFIG_USB_ANDROID
 static char *usb_functions_default[] = {
-#ifdef CONFIG_USB_ANDROID_RMNET
-       "rmnet",
-#endif
-       "usb_mass_storage",
-#ifdef CONFIG_USB_F_SERIAL
-       "modem",
-       "nmea",
-#endif
+	"diag",
+	"modem",
+	"nmea",
+	"rmnet",
+	"usb_mass_storage",
 };
 
 static char *usb_functions_default_adb[] = {
-       "usb_mass_storage",
-       "adb",
-#ifdef CONFIG_USB_ANDROID_RMNET
-       "rmnet",
-#endif
-#ifdef CONFIG_USB_F_SERIAL
-       "modem",
-       "nmea",
-#endif
+	"diag",
+	"adb",
+	"modem",
+	"nmea",
+	"rmnet",
+	"usb_mass_storage",
 };
 
 static char *usb_functions_rndis[] = {
-#ifdef CONFIG_USB_ANDROID_RNDIS
-       "rndis",
-#endif
+	"rndis",
 };
 
 static char *usb_functions_rndis_adb[] = {
-#ifdef CONFIG_USB_ANDROID_RNDIS
-       "rndis",
-#endif
-       "adb",
+	"rndis",
+	"adb",
 };
 
 static char *usb_functions_all[] = {
 #ifdef CONFIG_USB_ANDROID_RNDIS
-       "rndis",
+	"rndis",
 #endif
-	"usb_mass_storage",
+#ifdef CONFIG_USB_ANDROID_DIAG
+	"diag",
+#endif
 	"adb",
 #ifdef CONFIG_USB_F_SERIAL
-       "modem",
-       "nmea",
+	"modem",
+	"nmea",
 #endif
 #ifdef CONFIG_USB_ANDROID_RMNET
-       "rmnet",
+	"rmnet",
 #endif
+	"usb_mass_storage",
 #ifdef CONFIG_USB_ANDROID_ACM
-       "acm",
+	"acm",
 #endif
 };
 
@@ -219,7 +212,7 @@ static struct platform_device usb_mass_storage_device = {
 	.name	= "usb_mass_storage",
 	.id	= -1,
 	.dev	= {
-	.platform_data = &mass_storage_pdata,
+		.platform_data = &mass_storage_pdata,
 	},
 };
 
@@ -233,7 +226,7 @@ static struct platform_device rndis_device = {
 	.name	= "rndis",
 	.id	= -1,
 	.dev	= {
-	.platform_data = &rndis_pdata,
+		.platform_data = &rndis_pdata,
 	},
 };
 
@@ -253,8 +246,8 @@ static struct android_usb_platform_data android_usb_pdata = {
 static struct platform_device android_usb_device = {
 	.name	= "android_usb",
 	.id		= -1,
-	.dev	= {
-	.platform_data = &android_usb_pdata,
+	.dev		= {
+		.platform_data = &android_usb_pdata,
 	},
 };
 
@@ -287,19 +280,13 @@ static struct platform_device smc91x_device = {
 
 #ifdef CONFIG_USB_FUNCTION
 static struct usb_function_map usb_functions_map[] = {
-#ifdef CONFIG_USB_ANDROID_DIAG
 	{"diag", 0},
-#endif
 	{"adb", 1},
-#ifdef CONFIG_USB_F_SERIAL
 	{"modem", 2},
 	{"nmea", 3},
-#endif
 	{"mass_storage", 4},
 	{"ethernet", 5},
-#ifdef CONFIG_USB_ANDROID_RMNET
 	{"rmnet", 6},
-#endif
 };
 
 /* dynamic composition */
@@ -494,7 +481,7 @@ static struct platform_device msm_device_snd = {
 	.name = "msm_snd",
 	.id = -1,
 	.dev    = {
-	.platform_data = &msm_device_snd_endpoints
+		.platform_data = &msm_device_snd_endpoints
 	},
 };
 
@@ -600,7 +587,7 @@ static struct platform_device msm_device_adspdec = {
 	.name = "msm_adspdec",
 	.id = -1,
 	.dev    = {
-	.platform_data = &msm_device_adspdec_database
+		.platform_data = &msm_device_adspdec_database
 	},
 };
 
@@ -666,7 +653,7 @@ static struct platform_device hs_device = {
 	.name   = "msm-handset",
 	.id     = -1,
 	.dev    = {
-	.platform_data = &hs_platform_data,
+		.platform_data = &hs_platform_data,
 	},
 };
 
@@ -1165,7 +1152,7 @@ static struct platform_device msm_device_kgsl = {
 	.num_resources = ARRAY_SIZE(kgsl_resources),
 	.resource = kgsl_resources,
 	.dev = {
-	.platform_data = &kgsl_pdata,
+		.platform_data = &kgsl_pdata,
 	},
 };
 #endif
@@ -1521,19 +1508,30 @@ static struct msm_camera_sensor_info msm_camera_sensor_mt9d112_data = {
 static struct platform_device msm_camera_sensor_mt9d112 = {
 	.name      = "msm_camera_mt9d112",
 	.dev       = {
-	.platform_data = &msm_camera_sensor_mt9d112_data,
+		.platform_data = &msm_camera_sensor_mt9d112_data,
 	},
 };
 #endif
 #endif
 
+static u32 msm_calculate_batt_capacity(u32 current_voltage);
+
 static struct msm_psy_batt_pdata msm_psy_batt_data = {
-	.voltage_min_design 	= 3200,
+	.voltage_min_design 	= 3291,
 	.voltage_max_design 	= 4300,
 	.avail_chg_sources   	= AC_CHG | USB_CHG ,
 	.batt_technology        = POWER_SUPPLY_TECHNOLOGY_LION,
-	.calculate_capacity	= NULL,
+	.calculate_capacity 	= &msm_calculate_batt_capacity,
 };
+
+static u32 msm_calculate_batt_capacity(u32 current_voltage)
+{
+	u32 low_voltage   = msm_psy_batt_data.voltage_min_design;
+	u32 high_voltage  = msm_psy_batt_data.voltage_max_design;
+
+	return (current_voltage - low_voltage) * 100
+		/ (high_voltage - low_voltage);
+}
 
 static struct platform_device msm_batt_device = {
 	.name 		    = "msm-battery",
@@ -1590,6 +1588,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_USB_ANDROID
 	&usb_mass_storage_device,
 	&rndis_device,
+#ifdef CONFIG_USB_ANDROID_DIAG
+	&usb_diag_device,
+#endif
 	&android_usb_device,
 #endif
 	&msm_device_i2c,
