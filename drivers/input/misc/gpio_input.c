@@ -54,7 +54,7 @@ static enum hrtimer_restart gpio_event_input_timer_func(struct hrtimer *timer)
 	int i;
 	int trap;
 	int pressed;
-    	unsigned int type, code;
+    unsigned int type, code;
 	struct gpio_input_state *ds =
 		container_of(timer, struct gpio_input_state, timer);
 	unsigned gpio_flags = ds->info->flags;

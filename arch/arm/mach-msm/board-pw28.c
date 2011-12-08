@@ -76,6 +76,9 @@
 #include <linux/usb/android_composite.h>
 #endif
 
+#include "smd_private.h"
+#define ID_SMD_UUID 12
+
 #ifdef CONFIG_ARCH_MSM7X27
 #define MSM_PMEM_MDP_SIZE	0xdbb000
 #define MSM_PMEM_ADSP_SIZE	0x986000
@@ -85,10 +88,9 @@
 #define PMEM_KERNEL_EBI1_SIZE	0x1C000
 /* Using lower 1MB of OEMSBL memory for GPU_PHYS */
 #define MSM_GPU_PHYS_START_ADDR	 0xD600000ul
-#endif
-
 /* Using upper 1/2MB of Apps Bootloader memory*/
 #define MSM_PMEM_AUDIO_START_ADDR	0x1C000ul
+#endif
 
 #ifdef msm7627_ffa
 #define MANU_NAME   "SIMCOM"
@@ -116,7 +118,7 @@ static struct resource smc91x_resources[] = {
 static struct usb_mass_storage_platform_data usb_mass_storage_pdata = {
 	.nluns          = 0x02,
 	.buf_size       = 16384,
-	.vendor         = "GOOGLE",
+	.vendor         = MASS_STORAGE_NAME,
 	.product        = "Mass storage",
 	.release        = 0xffff,
 };
@@ -268,7 +270,6 @@ static int __init board_serialno_setup(char *serialno)
 	android_usb_pdata.serial_number = serialno;
 	return 1;
 }
-//__setup("androidboot.serialno=", board_serialno_setup);
 #endif
 
 static struct platform_device smc91x_device = {
@@ -853,16 +854,6 @@ static int msm_fb_lcdc_power_save(int on)
 						GPIO_CFG_2MA), GPIO_CFG_ENABLE);
 			gpio_set_value(GPIO_OUT_103, 1);
 #endif
-
-		//	if (tmp) {
-	//			printk(KERN_ERR "gpio_tlmm_config failed\n");
-	//			if (!rc)
-	//				rc = tmp;
-	//		}
-	//		gpio_set_value(88, 0);
-	//		mdelay(15);
-			
-	//		mdelay(15);
 		}
 	}
 
@@ -973,8 +964,6 @@ static unsigned bt_config_power_on[] = {
 	GPIO_CFG(70, 2, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),	/* PCM_SYNC */
 	GPIO_CFG(71, 2, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),	/* PCM_CLK */
 	GPIO_CFG(83, 0, GPIO_CFG_INPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),	/* HOST_WAKE */
-	//GPIO_CFG(20, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-	//GPIO_CFG(94, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
 };
 static unsigned bt_config_power_off[] = {
 	GPIO_CFG(42, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),	/* WAKE */
@@ -987,9 +976,8 @@ static unsigned bt_config_power_off[] = {
 	GPIO_CFG(70, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),	/* PCM_SYNC */
 	GPIO_CFG(71, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),	/* PCM_CLK */
 	GPIO_CFG(83, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),	/* HOST_WAKE */
-	//GPIO_CFG(20, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-	//GPIO_CFG(94, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
 };
+
 int wlan_power(int flag)
 {
 	struct vreg *vreg_bt;
@@ -1303,14 +1291,9 @@ static struct i2c_board_info gpio_i2c_devices[] = {
 #ifdef CONFIG_MSM_CAMERA
 static uint32_t camera_off_gpio_table[] = {
 	/* parallel CAMERA interfaces */
-	//GPIO_CFG(0,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), /* DAT0 */
-	//GPIO_CFG(1,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), /* DAT1 */
-	//GPIO_CFG(2,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), /* DAT2 */
-	//GPIO_CFG(3,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), /* DAT3 */
 	GPIO_CFG(3,   0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), /* CAM_PWDN */
 	GPIO_CFG(89,  0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), /* CAM_RESET */
 	GPIO_CFG(90,  0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), /* CAM_POWER/CAM_PWDN_F */
-
 	GPIO_CFG(4,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), /* DAT4 */
 	GPIO_CFG(5,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), /* DAT5 */
 	GPIO_CFG(6,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), /* DAT6 */
@@ -1326,16 +1309,10 @@ static uint32_t camera_off_gpio_table[] = {
 };
 
 static uint32_t camera_on_gpio_table[] = {
-	/* parallel CAMERA interfaces */
-	//GPIO_CFG(0,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), /* DAT0 */
-	//GPIO_CFG(1,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), /* DAT1 */
-	//GPIO_CFG(2,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), /* DAT2 */
-	//GPIO_CFG(3,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), /* DAT3 */
-	
+	/* parallel CAMERA interfaces */	
 	GPIO_CFG(3,   0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), /* CAM_PWDN */
 	GPIO_CFG(89,  0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), /* CAM_RESET */
 	GPIO_CFG(90,  0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), /* CAM_POWER/CAM_PWDN_F */
-
 	GPIO_CFG(4,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), /* DAT4 */
 	GPIO_CFG(5,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), /* DAT5 */
 	GPIO_CFG(6,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), /* DAT6 */
@@ -1367,21 +1344,10 @@ static void config_gpio_table(uint32_t *table, int len)
 static struct vreg *vreg_gp2;
 static struct vreg *vreg_gp3;
 
-int pmic_set_flash_led_current(enum pmic8058_leds id, unsigned mA)
-{
-       int rc;
-       rc = pmic_flash_led_set_current(mA);
-       return rc;
-}
-
 static struct msm_camera_sensor_flash_src msm_flash_src = {
 	.flash_sr_type = MSM_CAMERA_FLASH_SRC_PMIC,
-	._fsrc.pmic_src.num_of_src = 1,
 	._fsrc.pmic_src.low_current  = 30,
 	._fsrc.pmic_src.high_current = 100,
-	._fsrc.pmic_src.led_src_1 = 0,
-	._fsrc.pmic_src.led_src_2 = 0,
-	._fsrc.pmic_src.pmic_set_current = pmic_set_flash_led_current,
 };
 #ifdef CONFIG_MT9D112
 static void msm_camera_vreg_config_mt9d112(int vreg_en)
@@ -1516,26 +1482,63 @@ static struct platform_device msm_camera_sensor_mt9d112 = {
 
 static u32 msm_calculate_batt_capacity(u32 current_voltage);
 
+typedef struct 
+{
+    u32 voltage;
+    u32 capacity;
+} BattFuelCapacity;
+
+static const BattFuelCapacity fuelCapacity[] = {
+   {3388, 0},                      /*   0% */
+   {3500, 10},                     /*  10%,3580 is 15% when 3660 is 20 */
+   {3660, 20},                     /*  20% */
+   {3710, 30},                     /*  30% */
+   {3761, 40},                     /*  40% */
+   {3801, 50},                     /*  50% */
+   {3842, 60},                     /*  60% */
+   {3909, 70},                     /*  70% */
+   {3977, 80},                     /*  80% */
+   {4066, 90},                     /*  90% */
+   {4150, 100}                     /* 100% */
+};
+
 static struct msm_psy_batt_pdata msm_psy_batt_data = {
-	.voltage_min_design 	= 3291,
-	.voltage_max_design 	= 4300, //4200
+	.voltage_min_design 	= 3200,
+	.voltage_max_design 	= 4300,
 	.avail_chg_sources   	= AC_CHG | USB_CHG ,
 	.batt_technology        = POWER_SUPPLY_TECHNOLOGY_LION,
-	.calculate_capacity 	= &msm_calculate_batt_capacity,
+	.calculate_capacity	= &msm_calculate_batt_capacity,
 };
 
 static u32 msm_calculate_batt_capacity(u32 current_voltage)
 {
-	u32 low_voltage   = msm_psy_batt_data.voltage_min_design;
-	u32 high_voltage = msm_psy_batt_data.voltage_max_design - 100;
+    u8 step = sizeof(fuelCapacity)/sizeof(BattFuelCapacity);
+    u8 table_count;
 
-	if (current_voltage <= low_voltage)
-		return 1;
-	else if (current_voltage >= high_voltage)
-		return 100;
-	else
-		return (current_voltage - low_voltage) * 100
-			/ (high_voltage - low_voltage);
+    if (current_voltage <= fuelCapacity[0].voltage)
+    {
+        return 0;
+    }
+    else if (current_voltage >= fuelCapacity[step-1].voltage)
+    {
+        return 100;
+    }
+    else
+    {    
+        for (table_count = 1; table_count< step; table_count++)
+        {
+            if (current_voltage <= fuelCapacity[table_count].voltage)
+            {
+                return (fuelCapacity[table_count-1].capacity 
+                    + ((current_voltage - fuelCapacity[table_count-1].voltage)*10
+                    /(fuelCapacity[table_count].voltage - 
+                    fuelCapacity[table_count-1].voltage)));
+            }
+        }
+    }
+
+    printk("%s: error\n", __func__);
+    return 0;
 }
 
 static struct platform_device msm_batt_device = {
@@ -1972,15 +1975,6 @@ static void __init msm7x2x_init_mmc(void)
 #define msm7x2x_init_mmc() do {} while (0)
 #endif
 
-
-static struct msm_pm_platform_data msm7x25_pm_data[MSM_PM_SLEEP_MODE_NR] = {
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE].latency = 16000,
-
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_NO_XO_SHUTDOWN].latency = 12000,
-
-	[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].latency = 2000,
-};
-
 static struct msm_pm_platform_data msm7x27_pm_data[MSM_PM_SLEEP_MODE_NR] = {
 	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE].supported = 1,
 	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE].suspend_enabled = 1,
@@ -1995,8 +1989,7 @@ static struct msm_pm_platform_data msm7x27_pm_data[MSM_PM_SLEEP_MODE_NR] = {
 	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_NO_XO_SHUTDOWN].residency = 20000,
 
 	[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].supported = 1,
-	[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].suspend_enabled
-		= 1,
+	[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].suspend_enabled = 1,
 	[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].idle_enabled = 1,
 	[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].latency = 2000,
 	[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].residency = 0,
@@ -2048,14 +2041,9 @@ static void __init msm_device_i2c_init(void)
 	if (gpio_request(96, "i2c_sec_dat"))
 		pr_err("failed to request gpio i2c_sec_dat\n");
 
-	if (cpu_is_msm7x27())
-		msm_i2c_pdata.pm_lat =
-		msm7x27_pm_data[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_NO_XO_SHUTDOWN]
-		.latency;
-	else
-		msm_i2c_pdata.pm_lat =
-		msm7x25_pm_data[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_NO_XO_SHUTDOWN]
-		.latency;
+	msm_i2c_pdata.pm_lat =
+	msm7x27_pm_data[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_NO_XO_SHUTDOWN]
+	.latency;
 
 	msm_device_i2c.dev.platform_data = &msm_i2c_pdata;
 }
@@ -2074,27 +2062,6 @@ static void usb_mpp_init(void)
 				"to enable 3.3V LDO failed\n", __func__);
 	}
 }
-
-#if 0
-static void msm7x27_wlan_init(void)
-{
-	int rc = 0;
-	/* TBD: if (machine_is_msm7x27_ffa_with_wcn1312()) */
-	if (machine_is_msm7x27_ffa()) {
-		rc = mpp_config_digital_out(3, MPP_CFG(MPP_DLOGIC_LVL_MSMP,
-				MPP_DLOGIC_OUT_CTRL_LOW));
-		if (rc)
-			printk(KERN_ERR "%s: return val: %d \n",
-				__func__, rc);
-	}
-}
-#endif
-
-#define CUSTOMER_BOOT_MODE
-
-#ifdef CUSTOMER_BOOT_MODE
-#include "smd_private.h"
-#define ID_SMD_UUID 12
 
 char *board_serial;
 static void generate_serial_from_uuid(void)
@@ -2143,11 +2110,8 @@ void get_sd_boot_mode(unsigned *mode)
 
 EXPORT_SYMBOL(get_sd_boot_mode);
 
-#endif
 static void __init msm7x2x_init(void)
 {
-//struct vreg *vreg_bt;
-//int rc;
 #ifndef CONFIG_TOUCHSCREEN_VRPANEL
 	struct kobject *properties_kobj;
 #endif
@@ -2176,14 +2140,6 @@ static void __init msm7x2x_init(void)
 		printk ("%s-%d,wlan gpio ctrl request err\n", __FILE__, __LINE__);
 	gpio_direction_output(94,0);
 	gpio_direction_output(20,0);
-	/*vreg_bt = vreg_get(NULL, "gp6");
-	rc = vreg_set_level(vreg_bt, 2600);
-		if (rc) {
-			printk(KERN_ERR "%s: vreg set level failed (%d)\n",
-			       __func__, rc);
-			//return -EIO;
-		}
-		vreg_enable(vreg_bt);*/
 
 #if defined(CONFIG_SMC91X)
 	if (machine_is_msm7x25_ffa() || machine_is_msm7x27_ffa()) {
@@ -2229,6 +2185,7 @@ static void __init msm7x2x_init(void)
 	kgsl_pdata.grp3d_clk_name = "grp_clk";
 	kgsl_pdata.grp2d_clk_name = NULL;
 #endif
+
 	usb_mpp_init();
 
 #ifdef CONFIG_USB_FUNCTION
@@ -2241,20 +2198,11 @@ static void __init msm7x2x_init(void)
 
 #ifdef CONFIG_USB_MSM_OTG_72K
 	msm_device_otg.dev.platform_data = &msm_otg_pdata;
-	if (machine_is_msm7x25_surf() || machine_is_msm7x25_ffa()) {
-		msm_otg_pdata.pemp_level =
-			PRE_EMPHASIS_WITH_20_PERCENT;
-		msm_otg_pdata.drv_ampl = HS_DRV_AMPLITUDE_5_PERCENT;
-		msm_otg_pdata.cdr_autoreset = CDR_AUTO_RESET_ENABLE;
-		msm_otg_pdata.phy_reset_sig_inverted = 1;
-	}
-	if (machine_is_msm7x27_surf() || machine_is_msm7x27_ffa()) {
-		msm_otg_pdata.pemp_level =
-			PRE_EMPHASIS_WITH_10_PERCENT;
-		msm_otg_pdata.drv_ampl = HS_DRV_AMPLITUDE_5_PERCENT;
-		msm_otg_pdata.cdr_autoreset = CDR_AUTO_RESET_DISABLE;
-		msm_otg_pdata.phy_reset_sig_inverted = 1;
-	}
+	msm_otg_pdata.pemp_level =
+		PRE_EMPHASIS_WITH_10_PERCENT;
+	msm_otg_pdata.drv_ampl = HS_DRV_AMPLITUDE_5_PERCENT;
+	msm_otg_pdata.cdr_autoreset = CDR_AUTO_RESET_DISABLE;
+	msm_otg_pdata.phy_reset_sig_inverted = 1;
 
 #ifdef CONFIG_USB_GADGET
 	msm_otg_pdata.swfi_latency =
@@ -2269,9 +2217,6 @@ static void __init msm7x2x_init(void)
 #endif
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
-#ifdef CONFIG_MSM_CAMERA
-	//config_camera_off_gpios(); /* might not be necessary */
-#endif
 	msm_device_i2c_init();
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 	i2c_register_board_info(10, gpio_i2c_devices, ARRAY_SIZE(gpio_i2c_devices));
@@ -2302,13 +2247,8 @@ static void __init msm7x2x_init(void)
 
 	bt_power_init();
 
-	if (cpu_is_msm7x27())
-		msm_pm_set_platform_data(msm7x27_pm_data,
-					ARRAY_SIZE(msm7x27_pm_data));
-	else
-		msm_pm_set_platform_data(msm7x25_pm_data,
-					ARRAY_SIZE(msm7x25_pm_data));
-	//msm7x27_wlan_init();
+	msm_pm_set_platform_data(msm7x27_pm_data,
+				ARRAY_SIZE(msm7x27_pm_data));
 }
 
 static unsigned pmem_kernel_ebi1_size = PMEM_KERNEL_EBI1_SIZE;

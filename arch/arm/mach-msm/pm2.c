@@ -33,6 +33,7 @@
 #endif
 #include <mach/msm_iomap.h>
 #include <mach/system.h>
+#include <mach/sirc.h>
 #ifdef CONFIG_CACHE_L2X0
 #include <asm/hardware/cache-l2x0.h>
 #endif
@@ -955,6 +956,7 @@ static int msm_pm_power_collapse
 	memset(msm_pm_smem_data, 0, sizeof(*msm_pm_smem_data));
 
 	msm_irq_enter_sleep1(true, from_idle, &msm_pm_smem_data->irq_mask);
+	msm_sirc_enter_sleep();
 	msm_gpio_enter_sleep(from_idle);
 
 	msm_pm_smem_data->sleep_time = sleep_delay;
@@ -1155,6 +1157,7 @@ static int msm_pm_power_collapse
 		msm_pm_smem_data->wakeup_reason,
 		msm_pm_smem_data->pending_irqs);
 	msm_gpio_exit_sleep();
+	msm_sirc_exit_sleep();
 
 	smsm_change_state(SMSM_APPS_DEM,
 		DEM_SLAVE_SMSM_WFPI, DEM_SLAVE_SMSM_RUN);
@@ -1202,6 +1205,7 @@ power_collapse_early_exit:
 
 power_collapse_restore_gpio_bail:
 	msm_gpio_exit_sleep();
+	msm_sirc_exit_sleep();
 
 	/* Enter RUN */
 	smsm_change_state(SMSM_APPS_DEM,

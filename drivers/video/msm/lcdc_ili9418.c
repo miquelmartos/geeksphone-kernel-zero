@@ -170,55 +170,46 @@ static __inline void SendByte( unsigned char Byte)
 
     for (Cnt = 0; Cnt < 8; Cnt++)
     {
-        LCD_SCL( 0);
+        LCD_SCL(0);
         if (Byte&Shift)
         {
-            LCD_SI( 1);
+            LCD_SI(1);
         }
         else
         {
-            LCD_SI( 0);
+            LCD_SI(0);
         }
         Shift = Shift >> 1;
-        spi_delay( 1);
-        LCD_SCL( 1);
-        spi_delay( 1);
+        spi_delay(1);
+        LCD_SCL(1);
+        spi_delay(1);
     }
 }
 
 static void LCD_ILI9481_CMD(unsigned char cmd)
 {
 	LCD_CS(0);
-
 	LCD_SCL(0);
 	spi_delay(1);
 	LCD_SI(0);
 	LCD_SCL(1);
-
 	spi_delay(1);
 	SendByte(cmd);
 	spi_delay(1);
-
-	LCD_CS( 1);
-
+	LCD_CS(1);
 }
 
 static void LCD_ILI9481_INDEX(unsigned char index)
 {
-
 	LCD_CS(0);
-
 	LCD_SCL(0);
 	spi_delay(1);
 	LCD_SI(1);
 	LCD_SCL(1);
-
 	spi_delay(1);
 	SendByte(index);
 	spi_delay(1);
-
-	LCD_CS( 1);
-
+	LCD_CS(1);
 }
 
 
