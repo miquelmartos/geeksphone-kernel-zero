@@ -57,7 +57,6 @@
 
 #define KEY(hs_key, input_key) ((hs_key << 24) | input_key)
 
-//extern volatile int key_for_charger;
 enum hs_event {
 	HS_EVNT_EXT_PWR = 0,	/* External Power status        */
 	HS_EVNT_HSD,		/* Headset Detection            */
@@ -293,7 +292,6 @@ static void report_hs_key(uint32_t key_code, uint32_t key_parm)
 	case KEY_POWER:
 	case KEY_END:
 		printk(KERN_ERR "%s:  remote handset event %d\n",__func__, key);
-		//key_for_charger = KEY_END;//For power off charging
 	case KEY_VOLUMEUP:
 	case KEY_VOLUMEDOWN:
 		input_report_key(hs->ipdev, key, (key_code != HS_REL_K));
