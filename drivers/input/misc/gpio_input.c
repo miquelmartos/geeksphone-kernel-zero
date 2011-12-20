@@ -1,4 +1,3 @@
-/* #warning compile out */
 /* drivers/input/misc/gpio_input.c
  *
  * Copyright (C) 2007 Google, Inc.
@@ -20,6 +19,7 @@
 #include <linux/hrtimer.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/wakelock.h>
 
 enum {
@@ -53,7 +53,6 @@ static enum hrtimer_restart gpio_event_input_timer_func(struct hrtimer *timer)
 {
 	int i;
 	int pressed;
-    unsigned int type, code;
 	struct gpio_input_state *ds =
 		container_of(timer, struct gpio_input_state, timer);
 	unsigned gpio_flags = ds->info->flags;
@@ -63,6 +62,10 @@ static enum hrtimer_restart gpio_event_input_timer_func(struct hrtimer *timer)
 	struct gpio_key_state *key_state;
 	unsigned long irqflags;
 	uint8_t debounce;
+#ifdef CONFIG_BOARD_PW28
+	unsigned int type, code;
+#endif
+
 
 #if 0
 	key_entry = kp->keys_info->keymap;
@@ -172,7 +175,9 @@ static irqreturn_t gpio_event_input_irq_handler(int irq, void *dev_id)
 	const struct gpio_event_direct_entry *key_entry;
 	unsigned long irqflags;
 	int pressed;
-    unsigned int type, code;
+#ifdef CONFIG_BOARD_PW28
+	unsigned int type, code;
+#endif
 
 	if (!ds->use_irq)
 		return IRQ_HANDLED;
@@ -375,4 +380,6 @@ err_bad_keymap:
 err_ds_alloc_failed:
 	return ret;
 }
+#ifdef CONFIG_BOARD_PW28
 EXPORT_SYMBOL(gpio_event_input_func);
+#endif
