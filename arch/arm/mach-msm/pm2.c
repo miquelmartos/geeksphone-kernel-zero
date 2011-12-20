@@ -1694,7 +1694,7 @@ static void msm_pm_restart(char str)
 {
 	msm_rpcrouter_close();
 	printk("send PCOM_RESET_CHIP\n");
-	msm_proc_comm(PCOM_RESET_CHIP, &restart_reason, 0);
+	msm_proc_comm(PCOM_RESET_CHIP_IMM, &restart_reason, 0);
 	printk("Do Nothing!!\n");
 	for (;;)
 		;

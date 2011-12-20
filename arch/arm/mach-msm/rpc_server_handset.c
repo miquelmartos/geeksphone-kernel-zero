@@ -276,8 +276,6 @@ static void report_hs_key(uint32_t key_code, uint32_t key_parm)
 {
 	int key, temp_key_code;
 
-	printk(KERN_ERR "[keypad] report_hs_key(%ld, %ld) Enter \n",key_code, key_parm);
-
 	if (key_code == HS_REL_K)
 		key = hs_find_key(key_parm);
 	else
@@ -291,23 +289,47 @@ static void report_hs_key(uint32_t key_code, uint32_t key_parm)
 	switch (key) {
 	case KEY_POWER:
 	case KEY_END:
-		printk(KERN_ERR "%s:  remote handset event %d\n",__func__, key);
+#ifndef CONFIG_BOARD_PW28
+	case KEY_MEDIA:
+#endif
 	case KEY_VOLUMEUP:
 	case KEY_VOLUMEDOWN:
 		input_report_key(hs->ipdev, key, (key_code != HS_REL_K));
 		break;
+#ifdef CONFIG_BOARD_PW28
 	case SW_HEADPHONE_INSERT:
 		report_headset_switch(hs->ipdev, key, (key_code != HS_REL_K));
 		break;
+#else
+	case SW_HEADPHONE_INSERT_W_MIC:
+		hs->mic_on = hs->hs_on = (key_code != HS_REL_K) ? 1 : 0;
+		input_report_switch(hs->ipdev, SW_HEADPHONE_INSERT,
+							hs->hs_on);
+		input_report_switch(hs->ipdev, SW_MICROPHONE_INSERT,
+							hs->mic_on);
+		update_state();
+		break;
+
+	case SW_HEADPHONE_INSERT:
+		hs->hs_on = (key_code != HS_REL_K) ? 1 : 0;
+		input_report_switch(hs->ipdev, key, hs->hs_on);
+		update_state();
+		break;
+	case SW_MICROPHONE_INSERT:
+		hs->mic_on = (key_code != HS_REL_K) ? 1 : 0;
+		input_report_switch(hs->ipdev, key, hs->mic_on);
+		update_state();
+		break;
+#endif
 	case -1:
 		printk(KERN_ERR "%s: No mapping for remote handset event %d\n",
 				 __func__, temp_key_code);
+#ifdef CONFIG_BOARD_PW28
 	case KEY_MEDIA:
+#endif
 		return;
 	}
 	input_sync(hs->ipdev);
-
-	printk(KERN_ERR "[keypad] report_hs_key() Exit key<%d>\n",key);
 }
 
 static int handle_hs_rpc_call(struct msm_rpc_server *server,

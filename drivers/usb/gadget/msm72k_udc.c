@@ -46,6 +46,8 @@
 #include <linux/uaccess.h>
 #include <linux/wakelock.h>
 
+extern void update_usb_to_gui(int i);
+
 static const char driver_name[] = "msm72k_udc";
 
 /* #define DEBUG */

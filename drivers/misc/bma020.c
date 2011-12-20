@@ -7,7 +7,8 @@
 #include <linux/delay.h>
 
 #include <linux/i2c.h>
-#include <mach/bma020.h>
+#include <linux/bma020.h>
+
 
 static struct i2c_client *this_client;
 
@@ -183,6 +184,10 @@ static int DoCal_Bosch(void)
 		return 0;
 	}
 	
+    //CalData.calNumber.ZVal = calNumber.ZVal;
+	//calvalue.scalex = BMA020CAL_SCALE;
+	//calvalue.scaley = BMA020CAL_SCALE;
+
 	//store the cal value to file so that next time read it out
 
 }
@@ -322,6 +327,8 @@ static int motion_ioctl(struct inode *inode, struct file *filp, unsigned int cmd
 					calvalue.scaley = BMA020CAL_SCALE;
 				}
 				
+				//if (copy_to_user(&CalData, arg, sizeof(CalData)))
+				//	ret = -EFAULT;
  		       	printk("XYZ %d %d %d, scalx %d, scaly %d\r\n", calvalue.xyz.XVal, calvalue.xyz.YVal, calvalue.xyz.ZVal, calvalue.scalex, calvalue.scaley);
 				ret = 0;
 			}

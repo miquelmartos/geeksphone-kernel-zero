@@ -1,3 +1,4 @@
+#define __PW28__
 /*
  * Copyright (C) 2007 Google, Inc.
  * Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
@@ -1572,6 +1573,19 @@ struct platform_device msm_device_gpio_i2c = {
     }
 };
 
+#ifdef __PW28__
+static struct platform_device *early_devices[] __initdata = {
+#ifdef CONFIG_GPIOLIB
+	&msm_gpio_devices[0],
+	&msm_gpio_devices[1],
+	&msm_gpio_devices[2],
+	&msm_gpio_devices[3],
+	&msm_gpio_devices[4],
+	&msm_gpio_devices[5],
+#endif
+};
+#endif
+
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_ANDROID_RAM_CONSOLE
 	&ram_console_device,
@@ -1881,9 +1895,12 @@ static struct mmc_platform_data msm7x2x_sdc2_data = {
 	.translate_vdd	= msm_sdcc_setup_power,
 	.mmc_bus_width  = MMC_CAP_4_BIT_DATA,
 #ifdef CONFIG_MMC_MSM_SDIO_SUPPORT
+#ifdef __PW28__
+	.sdiowakeup_irq = MSM_GPIO_TO_INT(66),
+#else
 //	.sdiowakeup_irq = MSM_GPIO_TO_INT(66),
 #endif
-
+#endif
 	.msmsdcc_fmin	= 144000,
 	.msmsdcc_fmid	= 24576000,
 	.msmsdcc_fmax	= 24576000,
@@ -1949,7 +1966,11 @@ static void __init msm7x2x_init_mmc(void)
 	if (machine_is_msm7x25_surf() || machine_is_msm7x27_surf() ||
 		machine_is_msm7x27_ffa()) {
 #ifdef CONFIG_MMC_MSM_SDC2_SUPPORT
+//#ifdef __PW28__
+		//msm_sdcc_setup_gpio(2, 1);
+//#else
 		sdio_wakeup_gpiocfg_slot2();
+//#endif
 		msm_add_sdcc(2, &msm7x2x_sdc2_data);
 #endif
 	}
@@ -2070,7 +2091,11 @@ static void generate_serial_from_uuid(void)
 	/* Ugly hack: Rewrite the command line to include the
          * serial, since userspace wants it */
 	sprintf(boot_command_line,"%s androidboot.serialno=%s",saved_command_line,board_serial);
+#ifdef __PW28__
+	saved_command_line = kzalloc(strlen(boot_command_line)+1, GFP_KERNEL);
+#else
 	saved_command_line = alloc_bootmem(strlen (boot_command_line)+1);
+#endif
 	strcpy (saved_command_line, boot_command_line);
 }
 void get_sd_boot_mode(unsigned *mode)
@@ -2105,6 +2130,9 @@ static void __init msm7x2x_init(void)
 #endif
 	wlan_power(1);
 	msm_clock_init(msm_clocks_7x27, msm_num_clocks_7x27);
+#ifdef __PW28__
+	platform_add_devices(early_devices, ARRAY_SIZE(early_devices));
+#endif
 	generate_serial_from_uuid();
 
 	gpio_tlmm_config(GPIO_CFG(97,  0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),GPIO_CFG_ENABLE);
@@ -2116,8 +2144,11 @@ static void __init msm7x2x_init(void)
 
 	if (gpio_request(94, "94_ctrl") < 0)
 		printk ("%s-%d,wlan gpio ctrl request err\n", __FILE__, __LINE__);
+#ifdef __PW28__
+	//gpio_tlmm_config(GPIO_CFG(20,  0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),GPIO_CFG_ENABLE);
+#else
 	gpio_tlmm_config(GPIO_CFG(20,  0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),GPIO_CFG_ENABLE);
-
+#endif
 	if (gpio_request(20, "20_ctrl") < 0)
 		printk ("%s-%d,wlan gpio ctrl request err\n", __FILE__, __LINE__);
 	gpio_direction_output(94,0);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -22,6 +22,7 @@
  */
 #define DEBUG  0
 
+#include <linux/slab.h>
 #include <linux/earlysuspend.h>
 #include <linux/err.h>
 #include <linux/module.h>
@@ -483,10 +484,10 @@ static void msm_batt_update_psy_status(void)
 
 	/* Make correction for battery status */
 	if (battery_status == BATTERY_STATUS_INVALID_v1) {
-		if (msm_batt_info.chg_api_version < CHG_RPC_VER_2_2)
+		if (msm_batt_info.chg_api_version < CHG_RPC_VER_3_1)
 			battery_status = BATTERY_STATUS_INVALID;
 	}
-
+  
 	if (charger_status == msm_batt_info.charger_status &&
 	    charger_type == msm_batt_info.charger_type &&
 	    battery_status == msm_batt_info.battery_status &&
@@ -517,13 +518,22 @@ static void msm_batt_update_psy_status(void)
 	}
 
 	if (msm_batt_info.charger_type != charger_type) {
+#ifdef CONFIG_BOARD_PW28
 		if (charger_type == CHARGER_TYPE_USB_PC ||
+#else
+		if (charger_type == CHARGER_TYPE_USB_WALL ||
+		    charger_type == CHARGER_TYPE_USB_PC ||
+#endif
 		    charger_type == CHARGER_TYPE_USB_CARKIT) {
 			DBG_LIMIT("BATT: USB charger plugged in\n");
 			msm_batt_info.current_chg_source = USB_CHG;
 			supp = &msm_psy_usb;
+#ifdef CONFIG_BOARD_PW28
 		} else if (charger_type == CHARGER_TYPE_WALL ||
 		    charger_type == CHARGER_TYPE_USB_WALL) {
+#else
+		} else if (charger_type == CHARGER_TYPE_WALL) {
+#endif
 			DBG_LIMIT("BATT: AC Wall changer plugged in\n");
 			msm_batt_info.current_chg_source = AC_CHG;
 			supp = &msm_psy_ac;
@@ -659,12 +669,6 @@ static void msm_batt_update_psy_status(void)
 			supp = msm_batt_info.current_ps;
 	}
 
-	if (battery_level == BATTERY_LEVEL_FULL) {
-//		msm_batt_info.batt_status = POWER_SUPPLY_STATUS_FULL;
-//		msm_batt_info.batt_capacity = 100;
-//		supp = &msm_psy_batt;
-	}
-
 	if (supp) {
 		msm_batt_info.current_ps = supp;
 		DBG_LIMIT("BATT: Supply = %s\n", supp->name);
@@ -724,6 +728,7 @@ void update_usb_to_gui(int i)
 	pr_info("%s ---\n", __func__);
 }
 EXPORT_SYMBOL(update_usb_to_gui);
+#endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 struct batt_modify_client_req {
@@ -828,7 +833,6 @@ static int msm_batt_modify_client(u32 client_handle, u32 desired_batt_voltage,
 
 void msm_batt_early_suspend(struct early_suspend *h)
 {
-#if 0
 	int rc;
 
 	pr_debug("%s: enter\n", __func__);
@@ -849,15 +853,10 @@ void msm_batt_early_suspend(struct early_suspend *h)
 	}
 
 	pr_debug("%s: exit\n", __func__);
-#else
-	pr_debug("%s +++\n", __func__);
-	pr_debug("%s ---\n", __func__);
-#endif
 }
 
 void msm_batt_late_resume(struct early_suspend *h)
 {
-#if 0
 	int rc;
 
 	pr_debug("%s: enter\n", __func__);
@@ -875,70 +874,12 @@ void msm_batt_late_resume(struct early_suspend *h)
 		pr_err("%s: ERROR. invalid batt_handle\n", __func__);
 		return;
 	}
+
 	msm_batt_update_psy_status();
 	rc = 0;
 	set_data_to_arm9(WAKE_UPDATE_BATT_INFO, (char *)&rc, sizeof(int));
 	pr_debug("%s: exit\n", __func__);
-#else
-	pr_debug("%s +++\n", __func__);
-	msm_batt_update_psy_status();
-	pr_debug("%s ---\n", __func__);
-#endif
 }
-#endif
-
-#if defined CONFIG_PM
-static int msm_batt_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	int rc;
-
-	pr_debug(KERN_INFO "[msm_battery] %s()...\n", __func__);
-
-	msm_batt_update_psy_status();
-
-	if (msm_batt_info.batt_handle != INVALID_BATT_HANDLE) {
-		rc = msm_batt_modify_client(msm_batt_info.batt_handle,
-				BATTERY_LOW, BATTERY_VOLTAGE_BELOW_THIS_LEVEL,
-				BATTERY_CB_ID_LOW_VOL, BATTERY_LOW);
-
-		if (rc < 0) {
-			pr_err("%s: msm_batt_modify_client. rc=%d\n",
-			       __func__, rc);
-			return 0;
-		}
-	} else {
-		pr_err("%s: ERROR. invalid batt_handle\n", __func__);
-		return 0;
-	}
-
-	return 0;
-}
-
-static int msm_batt_resume(struct platform_device *pdev)
-{
-	int rc;
-
-	pr_debug(KERN_INFO "[msm_battery] %s()...\n", __func__);
-
-	if (msm_batt_info.batt_handle != INVALID_BATT_HANDLE) {
-		rc = msm_batt_modify_client(msm_batt_info.batt_handle,
-				BATTERY_LOW, BATTERY_ALL_ACTIVITY,
-			       BATTERY_CB_ID_ALL_ACTIV, BATTERY_ALL_ACTIVITY);
-		if (rc < 0) {
-			pr_err("%s: msm_batt_modify_client FAIL rc=%d\n",
-			       __func__, rc);
-			return 0;
-		}
-	} else {
-		pr_err("%s: ERROR. invalid batt_handle\n", __func__);
-		return 0;
-	}
-	msm_batt_update_psy_status();
-	rc = 0;
-	set_data_to_arm9(WAKE_UPDATE_BATT_INFO, (char *)&rc, sizeof(int));
-	return 0;
-}
-#endif
 
 struct msm_batt_vbatt_filter_req {
 	u32 batt_handle;
@@ -1557,7 +1498,7 @@ static int __devinit msm_batt_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	msm_batt_info.early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 45;
+	msm_batt_info.early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
 	msm_batt_info.early_suspend.suspend = msm_batt_early_suspend;
 	msm_batt_info.early_suspend.resume = msm_batt_late_resume;
 	register_early_suspend(&msm_batt_info.early_suspend);
@@ -1587,10 +1528,6 @@ static int __devexit msm_batt_remove(struct platform_device *pdev)
 static struct platform_driver msm_batt_driver = {
 	.probe = msm_batt_probe,
 	.remove = __devexit_p(msm_batt_remove),
-#if defined CONFIG_PM
-	.suspend = msm_batt_suspend,
-	.resume = msm_batt_resume,
-#endif
 	.driver = {
 		   .name = "msm-battery",
 		   .owner = THIS_MODULE,
