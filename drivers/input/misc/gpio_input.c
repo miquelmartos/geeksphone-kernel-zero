@@ -52,6 +52,7 @@ struct gpio_input_state {
 static enum hrtimer_restart gpio_event_input_timer_func(struct hrtimer *timer)
 {
 	int i;
+	int trap;
 	int pressed;
 	struct gpio_input_state *ds =
 		container_of(timer, struct gpio_input_state, timer);
@@ -131,19 +132,19 @@ static enum hrtimer_restart gpio_event_input_timer_func(struct hrtimer *timer)
 			pr_info("gpio_keys_scan_keys: key %x-%x, %d (%d) "
 				"changed to %d\n", ds->info->type,
 				key_entry->code, i, key_entry->gpio, pressed);
-#ifdef CONFIG_BOARD_PW28
-       		type = ds->info->type; 
-       		code = key_entry->code;
+        
+		trap = 0;
+        	type = ds->info->type; 
+        	code = key_entry->code;
         	if (ds->info->info.filter) {
-            		ds->info->info.filter(ds->input_devs, (struct gpio_event_info *)ds->info, ds, key_entry->dev,
-                		&type, &code, &pressed);
+            		trap = ds->info->info.filter(ds->input_devs, ds->info, ds, key_entry->dev,
+                			&type, &code, &pressed);
+        	}
+        	pr_err("[keypad] gpio_event_input_timer_func() type<%d> code<%d> pressed<%d>\n", type, code, pressed);
+		if (!trap) {
+			input_event(ds->input_devs->dev[key_entry->dev], type,
+					code, pressed);
 		}
-		input_event(ds->input_devs->dev[key_entry->dev], type,
-			code, pressed);
-#else
-		input_event(ds->input_devs->dev[key_entry->dev], ds->info->type,
-			    key_entry->code, pressed);
-#endif
 	}
 
 #if 0
