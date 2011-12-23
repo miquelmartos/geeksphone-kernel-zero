@@ -76,9 +76,6 @@
 #include <linux/usb/android_composite.h>
 #endif
 
-#include "smd_private.h"
-#define ID_SMD_UUID 12
-
 #ifdef CONFIG_ARCH_MSM7X27
 #define MSM_PMEM_MDP_SIZE	0xdbb000
 #define MSM_PMEM_ADSP_SIZE	0x986000
@@ -92,14 +89,12 @@
 #define MSM_PMEM_AUDIO_START_ADDR	0x1C000ul
 #endif
 
-#ifdef msm7627_ffa
 #define MANU_NAME   "SIMCOM"
 #define MASS_STORAGE_NAME   "SIMCOM"
 #define PRUD_NAME   "PW28"
-#define VID                   0x05C6
-#define PID                   0x9018
-#define ADBFN             0x1A
-#endif
+#define VID         0x05C6
+#define PID         0x9018
+#define ADBFN       0x1A
 
 static struct resource smc91x_resources[] = {
 	[0] = {
@@ -118,7 +113,7 @@ static struct resource smc91x_resources[] = {
 static struct usb_mass_storage_platform_data usb_mass_storage_pdata = {
 	.nluns          = 0x02,
 	.buf_size       = 16384,
-	.vendor         = "GPZero",
+	.vendor         = MASS_STORAGE_NAME,        // not used
 	.product        = "Mass storage",
 	.release        = 0xffff,
 };
@@ -134,26 +129,32 @@ static struct platform_device mass_storage_device = {
 
 #ifdef CONFIG_USB_ANDROID
 static char *usb_functions_default[] = {
-#ifdef CONFIG_USB_ANDROID_RMNET
-	"rmnet",
+#ifdef CONFIG_USB_ANDROID_DIAG
+	"diag",
 #endif
-	"usb_mass_storage",
 #ifdef CONFIG_USB_F_SERIAL
 	"modem",
 	"nmea",
 #endif
+#ifdef CONFIG_USB_ANDROID_RMNET
+	"rmnet",
+#endif
+	"usb_mass_storage",
 };
 
 static char *usb_functions_default_adb[] = {
-	"usb_mass_storage",
-	"adb",
-#ifdef CONFIG_USB_ANDROID_RMNET
-	"rmnet",
+#ifdef CONFIG_USB_ANDROID_DIAG
+	"diag",
 #endif
+	"adb",
 #ifdef CONFIG_USB_F_SERIAL
 	"modem",
 	"nmea",
 #endif
+#ifdef CONFIG_USB_ANDROID_RMNET
+	"rmnet",
+#endif
+	"usb_mass_storage",
 };
 
 static char *usb_functions_rndis[] = {
@@ -173,7 +174,9 @@ static char *usb_functions_all[] = {
 #ifdef CONFIG_USB_ANDROID_RNDIS
 	"rndis",
 #endif
-	"usb_mass_storage",
+#ifdef CONFIG_USB_ANDROID_DIAG
+	"diag",
+#endif
 	"adb",
 #ifdef CONFIG_USB_F_SERIAL
 	"modem",
@@ -182,6 +185,7 @@ static char *usb_functions_all[] = {
 #ifdef CONFIG_USB_ANDROID_RMNET
 	"rmnet",
 #endif
+	"usb_mass_storage",
 #ifdef CONFIG_USB_ANDROID_ACM
 	"acm",
 #endif
@@ -194,7 +198,7 @@ static struct android_usb_product usb_products[] = {
 		.functions	= usb_functions_default,
 	},
 	{
-		.product_id	= 0x9018,
+		.product_id	= PID,
 		.num_functions	= ARRAY_SIZE(usb_functions_default_adb),
 		.functions	= usb_functions_default_adb,
 	},
@@ -240,11 +244,11 @@ static struct platform_device rndis_device = {
 };
 
 static struct android_usb_platform_data android_usb_pdata = {
-	.vendor_id	= 0x05C6,
+	.vendor_id	= VID,
 	.product_id	= 0x9026,
 	.version	= 0x0100,
-	.product_name		= "Qualcomm HSUSB Device",
-	.manufacturer_name	= "Qualcomm Incorporated",
+	.product_name		= PRUD_NAME,
+	.manufacturer_name	= MANU_NAME,
 	.num_products = ARRAY_SIZE(usb_products),
 	.products = usb_products,
 	.num_functions = ARRAY_SIZE(usb_functions_all),
@@ -288,19 +292,13 @@ static struct platform_device smc91x_device = {
 
 #ifdef CONFIG_USB_FUNCTION
 static struct usb_function_map usb_functions_map[] = {
-#ifdef CONFIG_USB_ANDROID_DIAG
 	{"diag", 0},
-#endif
 	{"adb", 1},
-#ifdef CONFIG_USB_F_SERIAL
 	{"modem", 2},
 	{"nmea", 3},
-#endif
 	{"mass_storage", 4},
 	{"ethernet", 5},
-#ifdef CONFIG_USB_ANDROID_RMNET
 	{"rmnet", 6},
-#endif
 };
 
 /* dynamic composition */
@@ -356,16 +354,15 @@ static struct usb_composition usb_func_composition[] = {
 		.functions	    = 0x43,
 	},
 #endif
-
 };
 
 static struct msm_hsusb_platform_data msm_hsusb_pdata = {
 	.version	= 0x0100,
 	.phy_info	= (USB_PHY_INTEGRATED | USB_PHY_MODEL_65NM),
-	.vendor_id          = 0x5c6,
-	.product_name       = "Qualcomm HSUSB Device",						// not used 20101201
-	.serial_number      = "1234567890ABCDEF",								// not used 20101201
-	.manufacturer_name  = "Qualcomm Incorporated",						// not used 20101201
+	.vendor_id          = VID,
+	.product_name       = "Qualcomm HSUSB Device",
+	.serial_number      = "1234567890ABCDEF",
+	.manufacturer_name  = "Qualcomm Incorporated",
 	.compositions	= usb_func_composition,
 	.num_compositions = ARRAY_SIZE(usb_func_composition),
 	.function_map   = usb_functions_map,
@@ -671,31 +668,6 @@ static struct platform_device hs_device = {
 	},
 };
 
-/* TSIF begin */
-#if defined(CONFIG_TSIF) || defined(CONFIG_TSIF_MODULE)
-
-#define TSIF_B_SYNC      GPIO_CFG(87, 5, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA)
-#define TSIF_B_DATA      GPIO_CFG(86, 3, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA)
-#define TSIF_B_EN        GPIO_CFG(85, 3, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA)
-#define TSIF_B_CLK       GPIO_CFG(84, 4, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA)
-
-static const struct msm_gpio tsif_gpios[] = {
-	{ .gpio_cfg = TSIF_B_CLK,  .label =  "tsif_clk", },
-	{ .gpio_cfg = TSIF_B_EN,   .label =  "tsif_en", },
-	{ .gpio_cfg = TSIF_B_DATA, .label =  "tsif_data", },
-	{ .gpio_cfg = TSIF_B_SYNC, .label =  "tsif_sync", },
-};
-
-static struct msm_tsif_platform_data tsif_platform_data = {
-	.num_gpios = ARRAY_SIZE(tsif_gpios),
-	.gpios = tsif_gpios,
-	.tsif_clk = "tsif_clk",
-	.tsif_pclk = "tsif_pclk",
-	.tsif_ref_clk = "tsif_ref_clk",
-};
-#endif /* defined(CONFIG_TSIF) || defined(CONFIG_TSIF_MODULE) */
-/* TSIF end   */
-
 #define LCDC_CONFIG_PROC          21
 #define LCDC_UN_CONFIG_PROC       22
 #define LCDC_API_PROG             0x30000066
@@ -860,13 +832,6 @@ static int msm_fb_lcdc_power_save(int on)
 				if (!rc)
 					rc = tmp;
 			}
-
-#ifdef CONFIG_FB_MSM_LCDC_LG4573_WVGA			
-			tmp = gpio_tlmm_config(GPIO_CFG(GPIO_OUT_103, 0,
-						GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP,
-						GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-			gpio_set_value(GPIO_OUT_103, 1);
-#endif
 		}
 	}
 
@@ -894,7 +859,7 @@ static struct platform_device lcdc_ili9325sim_panel_device = {
 	.name   = "ili9325sim_qvga",
 	.id     = 0,
 	.dev    = {
-	.platform_data = &lcdc_ili9325sim_panel_data,
+		.platform_data = &lcdc_ili9325sim_panel_data,
 	}
 };
 
@@ -929,7 +894,7 @@ static struct platform_device msm_fb_device = {
 	.num_resources  = ARRAY_SIZE(msm_fb_resources),
 	.resource       = msm_fb_resources,
 	.dev    = {
-	.platform_data = &msm_fb_pdata,
+		.platform_data = &msm_fb_pdata,
 	}
 };
 
@@ -1004,34 +969,34 @@ int wlan_power(int flag)
 
 	if (IS_ERR(vreg_bt)) {
 		printk(KERN_ERR "%s: vreg get failed (%ld)\n",
-				__func__, PTR_ERR(vreg_bt));
+		       __func__, PTR_ERR(vreg_bt));
 		return PTR_ERR(vreg_bt);
 	}
 	/* units of mV, steps of 50 mV */
 	rc = vreg_set_level(vreg_bt, 2850);
 	if (rc) {
 		printk(KERN_ERR "%s: vreg set level failed (%d)\n",
-				__func__, rc);
+		       __func__, rc);
 		return -EIO;
 	}
-	if (flag == 1){
+	if (flag == 1) {
 		rc = vreg_enable(vreg_bt);
 		if (rc) {
 			printk(KERN_ERR "%s: vreg enable failed (%d)\n",
-					__func__, rc);
+			       __func__, rc);
 			return -EIO;
 		}
-	}else {
+	} else {
 		rc = vreg_disable(vreg_bt);
 		if (rc) {
 			printk(KERN_ERR "%s: vreg disable failed (%d)\n",
-					__func__, rc);
+			       __func__, rc);
 			return -EIO;
 		}
 	}
 	return 0;
-
 }
+
 EXPORT_SYMBOL(wlan_power);
 
 static int bluetooth_power(int on)
@@ -1193,12 +1158,9 @@ static struct platform_device msm_bluesleep_device = {
 
 static int synaptics_power(int on) {
     static struct vreg *vreg;
+
     if (!vreg) {
-#if defined(msm7627_ffa)
-        vreg = vreg_get(NULL, "gp4");
-#else
-        vreg = NULL;
-#endif
+	vreg = vreg_get(NULL, "gp4");
     }
     if (vreg) {
         if (on) {
@@ -1240,7 +1202,6 @@ static int synaptics_power(int on) {
 static struct synaptics_i2c_rmi_platform_data synaptics_ts_data[] = {
     {
         .power = synaptics_power,
-    	//.flags = SYNAPTICS_FLIP_Y,
     }
 };
 
@@ -1261,6 +1222,7 @@ static struct cm3623_platform_data cm3623_platform_data = {
     .gpio_int = 18,
     .power = cm3623_power,
 };
+
 static struct i2c_board_info i2c_devices[] = {
 #ifdef CONFIG_MT9D112
 	{
@@ -1289,13 +1251,6 @@ static struct i2c_board_info gpio_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO(SYNAPTICS_I2C_RMI_NAME, 0x22),
 		.platform_data = synaptics_ts_data,
-		.irq = MSM_GPIO_TO_INT(124),
-	},
-#endif
-#ifdef CONFIG_TOUCHSCREEN_SSD2531
-	{
-		I2C_BOARD_INFO(SSD2531_NAME, 0x5C),
-		.platform_data = ssd2531_ts_data,
 		.irq = MSM_GPIO_TO_INT(124),
 	},
 #endif
@@ -1569,7 +1524,7 @@ struct platform_device msm_device_gpio_i2c = {
 	.name	= "i2c-gpio",
 	.id		= 10,
 	.dev    = {
-	.platform_data = &platform_data_gpio_i2c,
+        .platform_data = &platform_data_gpio_i2c,
     }
 };
 
@@ -1660,7 +1615,6 @@ static void __init msm_fb_add_devices(void)
 
 extern struct sys_timer msm_timer;
 
-#ifndef CONFIG_TOUCHSCREEN_VRPANEL
 static ssize_t pw28_virtual_keys_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
@@ -1676,8 +1630,8 @@ static ssize_t pw28_virtual_keys_show(struct kobject *kobj,
 
 static struct kobj_attribute pw28_virtual_keys_attr = {
 	.attr = {
-	.name = "virtualkeys.synaptics-rmi-touchscreen",
-	.mode = S_IRUGO,
+		.name = "virtualkeys.synaptics-rmi-touchscreen",
+		.mode = S_IRUGO,
 	},
 	.show = &pw28_virtual_keys_show,
 };
@@ -1690,8 +1644,6 @@ static struct attribute *pw28_properties_attrs[] = {
 static struct attribute_group pw28_properties_attr_group = {
 	.attrs = pw28_properties_attrs,
 };
-
-#endif
 
 static void __init msm7x2x_init_irq(void)
 {
@@ -1707,7 +1659,6 @@ static struct msm_acpu_clock_platform_data msm7x2x_clock_data = {
 
 void msm_serial_debug_init(unsigned int base, int irq,
 			   struct device *clk_device, int signal_irq);
-
 
 #if (defined(CONFIG_MMC_MSM_SDC1_SUPPORT)\
 	|| defined(CONFIG_MMC_MSM_SDC2_SUPPORT)\
@@ -1816,7 +1767,6 @@ static void msm_sdcc_setup_gpio(int dev_id, unsigned int enable)
 	}
 }
 
-
 static uint32_t msm_sdcc_setup_power(struct device *dv, unsigned int vdd)
 {
 	int rc = 0;
@@ -1832,9 +1782,7 @@ static uint32_t msm_sdcc_setup_power(struct device *dv, unsigned int vdd)
 
 		clear_bit(pdev->id, &vreg_sts);
 
-
 		if (!vreg_sts) {
-#if 1
 			if (machine_is_msm7x25_ffa() ||
 					machine_is_msm7x27_ffa()) {
 				rc = mpp_config_digital_out(mpp_mmc,
@@ -1842,9 +1790,6 @@ static uint32_t msm_sdcc_setup_power(struct device *dv, unsigned int vdd)
 				     MPP_DLOGIC_OUT_CTRL_LOW));
 			} else
 				rc = vreg_disable(vreg_mmc);
-#else
-			rc = vreg_disable(vreg_mmc);
-#endif
 			if (rc)
 				printk(KERN_ERR "%s: return val: %d \n",
 					__func__, rc);
@@ -1853,7 +1798,6 @@ static uint32_t msm_sdcc_setup_power(struct device *dv, unsigned int vdd)
 	}
 
 	if (!vreg_sts) {
-#if 1
 		if (machine_is_msm7x25_ffa() || machine_is_msm7x27_ffa()) {
 			rc = mpp_config_digital_out(mpp_mmc,
 			     MPP_CFG(MPP_DLOGIC_LVL_MSMP,
@@ -1863,12 +1807,6 @@ static uint32_t msm_sdcc_setup_power(struct device *dv, unsigned int vdd)
 			if (!rc)
 				rc = vreg_enable(vreg_mmc);
 		}
-#else
-		rc = vreg_set_level(vreg_mmc, 2850);
-		if (!rc)
-			rc = vreg_enable(vreg_mmc);
-#endif
-
 		if (rc)
 			printk(KERN_ERR "%s: return val: %d \n",
 					__func__, rc);
@@ -1895,11 +1833,7 @@ static struct mmc_platform_data msm7x2x_sdc2_data = {
 	.translate_vdd	= msm_sdcc_setup_power,
 	.mmc_bus_width  = MMC_CAP_4_BIT_DATA,
 #ifdef CONFIG_MMC_MSM_SDIO_SUPPORT
-#ifdef __PW28__
 	.sdiowakeup_irq = MSM_GPIO_TO_INT(66),
-#else
-//	.sdiowakeup_irq = MSM_GPIO_TO_INT(66),
-#endif
 #endif
 	.msmsdcc_fmin	= 144000,
 	.msmsdcc_fmid	= 24576000,
@@ -1966,11 +1900,8 @@ static void __init msm7x2x_init_mmc(void)
 	if (machine_is_msm7x25_surf() || machine_is_msm7x27_surf() ||
 		machine_is_msm7x27_ffa()) {
 #ifdef CONFIG_MMC_MSM_SDC2_SUPPORT
-//#ifdef __PW28__
-		//msm_sdcc_setup_gpio(2, 1);
-//#else
+//		msm_sdcc_setup_gpio(2, 1); Provoca en algunos modelos bootloop al encenderlo.
 		sdio_wakeup_gpiocfg_slot2();
-//#endif
 		msm_add_sdcc(2, &msm7x2x_sdc2_data);
 #endif
 	}
@@ -2076,6 +2007,12 @@ static void usb_mpp_init(void)
 	}
 }
 
+#define CUSTOMER_BOOT_MODE
+
+#ifdef CUSTOMER_BOOT_MODE
+#include "smd_private.h"
+#define ID_SMD_UUID 12
+
 char *board_serial;
 static void generate_serial_from_uuid(void)
 {
@@ -2091,13 +2028,11 @@ static void generate_serial_from_uuid(void)
 	/* Ugly hack: Rewrite the command line to include the
          * serial, since userspace wants it */
 	sprintf(boot_command_line,"%s androidboot.serialno=%s",saved_command_line,board_serial);
-#ifdef __PW28__
 	saved_command_line = kzalloc(strlen(boot_command_line)+1, GFP_KERNEL);
-#else
-	saved_command_line = alloc_bootmem(strlen (boot_command_line)+1);
-#endif
-	strcpy (saved_command_line, boot_command_line);
+	strcpy(saved_command_line, boot_command_line);
 }
+
+
 void get_sd_boot_mode(unsigned *mode)
 {
     unsigned *pMode;
@@ -2111,7 +2046,7 @@ void get_sd_boot_mode(unsigned *mode)
 
     pMode = smem_find(ID_SMD_UUID, mode_len);
     if (pMode != 0) {
-        printk(KERN_ERR "[boot] Kenel read SMEM_WM_UUID  mode ={<0x%x>, <0x%x>} len <%d>\n", pMode[0], pMode[1], mode_len);
+        printk(KERN_ERR "[boot] Kernel read SMEM_WM_UUID  mode ={<0x%x>, <0x%x>} len <%d>\n", pMode[0], pMode[1], mode_len);
         mode[0] = pMode[0];
         mode[1] = pMode[1];
         
@@ -2123,11 +2058,12 @@ void get_sd_boot_mode(unsigned *mode)
 
 EXPORT_SYMBOL(get_sd_boot_mode);
 
+#endif
+
 static void __init msm7x2x_init(void)
 {
-#ifndef CONFIG_TOUCHSCREEN_VRPANEL
 	struct kobject *properties_kobj;
-#endif
+
 	wlan_power(1);
 	msm_clock_init(msm_clocks_7x27, msm_num_clocks_7x27);
 #ifdef __PW28__
@@ -2144,11 +2080,7 @@ static void __init msm7x2x_init(void)
 
 	if (gpio_request(94, "94_ctrl") < 0)
 		printk ("%s-%d,wlan gpio ctrl request err\n", __FILE__, __LINE__);
-#ifdef __PW28__
-	//gpio_tlmm_config(GPIO_CFG(20,  0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),GPIO_CFG_ENABLE);
-#else
 	gpio_tlmm_config(GPIO_CFG(20,  0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),GPIO_CFG_ENABLE);
-#endif
 	if (gpio_request(20, "20_ctrl") < 0)
 		printk ("%s-%d,wlan gpio ctrl request err\n", __FILE__, __LINE__);
 	gpio_direction_output(94,0);
@@ -2225,9 +2157,6 @@ static void __init msm7x2x_init(void)
 	msm_gadget_pdata.is_phy_status_timer_on = 1;
 #endif
 #endif
-#if defined(CONFIG_TSIF) || defined(CONFIG_TSIF_MODULE)
-	msm_device_tsif.dev.platform_data = &tsif_platform_data;
-#endif
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	msm_device_i2c_init();
@@ -2247,7 +2176,6 @@ static void __init msm7x2x_init(void)
 #endif
 	msm7x2x_init_mmc();
 
-#ifndef CONFIG_TOUCHSCREEN_VRPANEL
 	properties_kobj = kobject_create_and_add("board_properties", NULL);
 	if (properties_kobj) {
 		if (sysfs_create_group(properties_kobj,
@@ -2256,7 +2184,6 @@ static void __init msm7x2x_init(void)
 	} else {
 		pr_err("failed to create board_properties\n");
 	}
-#endif
 
 	bt_power_init();
 
@@ -2387,8 +2314,8 @@ static void __init msm7x2x_map_io(void)
 		   64Kb/Way and 4-Way Associativity;
 		   evmon/parity/share disabled. */
 		if ((SOCINFO_VERSION_MAJOR(socinfo_get_version()) > 1)
-				|| ((SOCINFO_VERSION_MAJOR(socinfo_get_version()) == 1)
-					&& (SOCINFO_VERSION_MINOR(socinfo_get_version()) >= 3)))
+			|| ((SOCINFO_VERSION_MAJOR(socinfo_get_version()) == 1)
+			&& (SOCINFO_VERSION_MINOR(socinfo_get_version()) >= 3)))
 			/* R/W latency: 4 cycles; */
 			l2x0_init(MSM_L2CC_BASE, 0x0006801B, 0xfe000000);
 		else
