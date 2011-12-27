@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.32.9
-# Mon Dec 26 16:28:57 2011
+# Tue Dec 27 23:12:53 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -912,6 +912,7 @@ CONFIG_WLAN=y
 CONFIG_BCM4329=m
 CONFIG_BCM4329_FW_PATH="/system/etc/firmware/fw_bcm4329.bin"
 CONFIG_BCM4329_NVRAM_PATH="/system/etc/wifi/nvram.txt"
+# CONFIG_BCM4329_ENABLE_CSCAN is not set
 
 #
 # Enable WiMAX (Networking options) to see the WiMAX drivers
