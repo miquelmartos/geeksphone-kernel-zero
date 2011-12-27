@@ -403,7 +403,7 @@ EXPORT_SYMBOL(dma_free_coherent);
  * platforms with CONFIG_DMABOUNCE.
  * Use the driver DMA support - see dma-mapping.h (dma_sync_*)
  */
-static void dma_cache_maint(const void *start, size_t size, int direction)
+void dma_cache_maint(const void *start, size_t size, int direction)
 {
 	void (*inner_op)(const void *, const void *);
 	void (*outer_op)(unsigned long, unsigned long);
@@ -426,64 +426,23 @@ static void dma_cache_maint(const void *start, size_t size, int direction)
 	}
 
 	inner_op(start, start + size);
-	outer_op(__pa(start), __pa(start) + size);
-}
 
-void ___dma_single_cpu_to_dev(const void *kaddr, size_t size,
-	enum dma_data_direction dir)
-{
-	dma_cache_maint(kaddr, size, dir);
-}
-EXPORT_SYMBOL(___dma_single_cpu_to_dev);
-
-void ___dma_single_dev_to_cpu(const void *kaddr, size_t size,
-	enum dma_data_direction dir)
-{
-	/* nothing to do */
-}
-EXPORT_SYMBOL(___dma_single_dev_to_cpu);
-
-static void dma_cache_maint_page(struct page *page, unsigned long offset,
-	size_t size, void (*op)(const void *, const void *))
-{
+#ifdef CONFIG_OUTER_CACHE
 	/*
-	 * A single sg entry may refer to multiple physically contiguous
-	 * pages.  But we still need to process highmem pages individually.
-	 * If highmem is not configured then the bulk of this loop gets
-	 * optimized out.
+	 * A page table walk would be required if the address isnt linearly
+	 * mapped. Simply BUG_ON for now.
 	 */
-	size_t left = size;
-	do {
-		size_t len = left;
-		void *vaddr;
+	BUG_ON(!virt_addr_valid(start) || !virt_addr_valid(start + size - 1));
+	outer_op(__pa(start), __pa(start) + size);
+#endif
 
-		if (PageHighMem(page)) {
-			if (len + offset > PAGE_SIZE) {
-				if (offset >= PAGE_SIZE) {
-					page += offset / PAGE_SIZE;
-					offset %= PAGE_SIZE;
-				}
-				len = PAGE_SIZE - offset;
-			}
-			vaddr = kmap_high_get(page);
-			if (vaddr) {
-				vaddr += offset;
-				op(vaddr, vaddr + len);
-				kunmap_high(page);
-			}
-		} else {
-			vaddr = page_address(page) + offset;
-			op(vaddr, vaddr + len);
-		}
-		offset = 0;
-		page++;
-		left -= len;
-	} while (left);
 }
+EXPORT_SYMBOL(dma_cache_maint);
 
-void ___dma_page_cpu_to_dev(struct page *page, unsigned long off,
-	size_t size, enum dma_data_direction dir)
+static void dma_cache_maint_contiguous(struct page *page, unsigned long offset,
+				       size_t size, int direction)
 {
+	void *vaddr;
 	unsigned long paddr;
 	void (*inner_op)(const void *, const void *);
 	void (*outer_op)(unsigned long, unsigned long);
@@ -505,19 +464,48 @@ void ___dma_page_cpu_to_dev(struct page *page, unsigned long off,
 		BUG();
 	}
 
-	dma_cache_maint_page(page, off, size, inner_op);
+	if (!PageHighMem(page)) {
+		vaddr = page_address(page) + offset;
+		inner_op(vaddr, vaddr + size);
+	} else {
+		vaddr = kmap_high_get(page);
+		if (vaddr) {
+			vaddr += offset;
+			inner_op(vaddr, vaddr + size);
+			kunmap_high(page);
+		}
+	}
 
-	paddr = page_to_phys(page) + off;
+	paddr = page_to_phys(page) + offset;
 	outer_op(paddr, paddr + size);
 }
-EXPORT_SYMBOL(___dma_page_cpu_to_dev);
 
-void ___dma_page_dev_to_cpu(struct page *page, unsigned long off,
-	size_t size, enum dma_data_direction dir)
+void dma_cache_maint_page(struct page *page, unsigned long offset,
+			  size_t size, int dir)
 {
-	/* nothing to do */
+	/*
+	 * A single sg entry may refer to multiple physically contiguous
+	 * pages.  But we still need to process highmem pages individually.
+	 * If highmem is not configured then the bulk of this loop gets
+	 * optimized out.
+	 */
+	size_t left = size;
+	do {
+		size_t len = left;
+		if (PageHighMem(page) && len + offset > PAGE_SIZE) {
+			if (offset >= PAGE_SIZE) {
+				page += offset / PAGE_SIZE;
+				offset %= PAGE_SIZE;
+			}
+			len = PAGE_SIZE - offset;
+		}
+		dma_cache_maint_contiguous(page, offset, len, dir);
+		offset = 0;
+		page++;
+		left -= len;
+	} while (left);
 }
-EXPORT_SYMBOL(___dma_page_dev_to_cpu);
+EXPORT_SYMBOL(dma_cache_maint_page);
 
 /**
  * dma_map_sg - map a set of SG buffers for streaming mode DMA
@@ -591,12 +579,8 @@ void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 	int i;
 
 	for_each_sg(sg, s, nents, i) {
-		if (!dmabounce_sync_for_cpu(dev, sg_dma_address(s), 0,
-					    sg_dma_len(s), dir))
-			continue;
-
-		__dma_page_dev_to_cpu(sg_page(s), s->offset,
-				      s->length, dir);
+		dmabounce_sync_for_cpu(dev, sg_dma_address(s), 0,
+					sg_dma_len(s), dir);
 	}
 }
 EXPORT_SYMBOL(dma_sync_sg_for_cpu);
@@ -619,8 +603,9 @@ void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 					sg_dma_len(s), dir))
 			continue;
 
-		__dma_page_cpu_to_dev(sg_page(s), s->offset,
-				      s->length, dir);
+		if (!arch_is_coherent())
+			dma_cache_maint_page(sg_page(s), s->offset,
+					     s->length, dir);
 	}
 }
 EXPORT_SYMBOL(dma_sync_sg_for_device);
