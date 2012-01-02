@@ -26,7 +26,6 @@
 #include <linux/bootmem.h>
 #include <linux/power_supply.h>
 
-
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -2140,8 +2139,7 @@ static void __init msm7x2x_init(void)
 
 #ifdef CONFIG_USB_MSM_OTG_72K
 	msm_device_otg.dev.platform_data = &msm_otg_pdata;
-	msm_otg_pdata.pemp_level =
-		PRE_EMPHASIS_WITH_10_PERCENT;
+	msm_otg_pdata.pemp_level = PRE_EMPHASIS_WITH_10_PERCENT;
 	msm_otg_pdata.drv_ampl = HS_DRV_AMPLITUDE_5_PERCENT;
 	msm_otg_pdata.cdr_autoreset = CDR_AUTO_RESET_DISABLE;
 	msm_otg_pdata.phy_reset_sig_inverted = 1;
