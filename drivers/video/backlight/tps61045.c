@@ -42,7 +42,7 @@ static void Tpsc(TpsPumpRes_t * pstRes, u32 n, bool Dir)
 	loops *= delay;
 	for (i = 0; i < n; i++) {
 		gpio_direction_output(pstRes->Id, 1);
-		// delay 1us
+		udelay(1);
 		gpio_direction_output(pstRes->Id, 0);
 		__delay(loops);
 	}
@@ -76,8 +76,9 @@ static void Tps61045Set(TpsPumpRes_t * pstRes)
 		Tpsc(pstRes, Delta, false);
 	} else {
 		gpio_set_value(pstRes->Id, 1);
-	}
-	pstRes->CurLv = pstRes->DesLv;
+    }
+    udelay(1);
+    pstRes->CurLv = pstRes->DesLv;
 }
 
 static void Tps61045PowerOn(TpsPumpRes_t * pstRes)
@@ -162,7 +163,7 @@ static int __init Tps61045Probe(struct platform_device *pdev)
 		       TpsRes.MaxLv);
 //		TpsRes.CurLv = TpsRes.DesLv = TPS_HW_MAX_LV;
 		TpsRes.CurLv = TpsRes.DesLv = TpsRes.MaxLv;
-
+		udelay(1);
 		ChargePumpRegIf(&_ChargePumpIf);
 
 	} while (0);
