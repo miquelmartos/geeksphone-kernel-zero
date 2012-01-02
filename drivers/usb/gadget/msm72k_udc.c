@@ -279,9 +279,7 @@ static ssize_t print_switch_state(struct switch_dev *sdev, char *buf)
 {
 	return sprintf(buf, "%s\n", sdev->state ? "online" : "offline");
 }
-#define USB_CHARGER_MASK 0x0200
-#define WALL_CHARGER_MASK 0x0800
-#define USB_WALL_CHARGER_MASK 0x0c00
+
 static inline enum chg_type usb_get_chg_type(struct usb_info *ui)
 {
 	if ((readl(USB_PORTSC) & PORTSC_LS) == PORTSC_LS)
