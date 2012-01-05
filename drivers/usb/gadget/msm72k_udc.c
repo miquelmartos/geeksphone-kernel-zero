@@ -146,7 +146,7 @@ static void usb_do_remote_wakeup(struct work_struct *w);
 #define USB_CHG_DET_DELAY	msecs_to_jiffies(1000)
 #define REMOTE_WAKEUP_DELAY	msecs_to_jiffies(1000)
 #define PHY_STATUS_CHECK_DELAY (jiffies + msecs_to_jiffies(1000))
-extern void update_usb_to_gui(int i);
+
 struct usb_info {
 	/* lock for register/queue/device state changes */
 	spinlock_t lock;
@@ -2648,7 +2648,7 @@ static struct dev_pm_ops msm72k_udc_dev_pm_ops = {
 static struct platform_driver usb_driver = {
 	.probe = msm72k_probe,
 	.driver = { .name = "msm_hsusb",
-	.pm = &msm72k_udc_dev_pm_ops, },
+		    .pm = &msm72k_udc_dev_pm_ops, },
 };
 
 static int __init init(void)
