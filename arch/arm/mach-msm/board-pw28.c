@@ -1446,28 +1446,8 @@ static struct platform_device msm_camera_sensor_mt9d112 = {
 
 static u32 msm_calculate_batt_capacity(u32 current_voltage);
 
-typedef struct 
-{
-    u32 voltage;
-    u32 capacity;
-} BattFuelCapacity;
-
-static const BattFuelCapacity fuelCapacity[] = {
-   {3388, 0},                      /*   0% */
-   {3500, 10},                     /*  10%,3580 is 15% when 3660 is 20 */
-   {3660, 20},                     /*  20% */
-   {3710, 30},                     /*  30% */
-   {3761, 40},                     /*  40% */
-   {3801, 50},                     /*  50% */
-   {3842, 60},                     /*  60% */
-   {3909, 70},                     /*  70% */
-   {3977, 80},                     /*  80% */
-   {4066, 90},                     /*  90% */
-   {4150, 100}                     /* 100% */
-};
-
 static struct msm_psy_batt_pdata msm_psy_batt_data = {
-	.voltage_min_design 	= 3200,
+	.voltage_min_design 	= 3250,
 	.voltage_max_design 	= 4300,
 	.avail_chg_sources   	= AC_CHG | USB_CHG ,
 	.batt_technology        = POWER_SUPPLY_TECHNOLOGY_LION,
@@ -1476,33 +1456,16 @@ static struct msm_psy_batt_pdata msm_psy_batt_data = {
 
 static u32 msm_calculate_batt_capacity(u32 current_voltage)
 {
-    u8 step = sizeof(fuelCapacity)/sizeof(BattFuelCapacity);
-    u8 table_count;
+	u32 low_voltage = msm_psy_batt_data.voltage_min_design;
+	u32 high_voltage = msm_psy_batt_data.voltage_max_design - 100;
 
-    if (current_voltage <= fuelCapacity[0].voltage)
-    {
-        return 0;
-    }
-    else if (current_voltage >= fuelCapacity[step-1].voltage)
-    {
-        return 100;
-    }
-    else
-    {    
-        for (table_count = 1; table_count< step; table_count++)
-        {
-            if (current_voltage <= fuelCapacity[table_count].voltage)
-            {
-                return (fuelCapacity[table_count-1].capacity 
-                    + ((current_voltage - fuelCapacity[table_count-1].voltage)*10
-                    /(fuelCapacity[table_count].voltage - 
-                    fuelCapacity[table_count-1].voltage)));
-            }
-        }
-    }
-
-    printk("%s: error\n", __func__);
-    return 0;
+	if (current_voltage <= low_voltage)
+		return 1;
+	else if (current_voltage >= high_voltage)
+		return 100;
+	else
+		return (current_voltage - low_voltage) * 100
+			/ (high_voltage - low_voltage);
 }
 
 static struct platform_device msm_batt_device = {
