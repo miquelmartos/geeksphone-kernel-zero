@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -22,7 +22,6 @@
  */
 #define DEBUG  0
 
-#include <linux/slab.h>
 #include <linux/earlysuspend.h>
 #include <linux/err.h>
 #include <linux/module.h>
@@ -44,13 +43,13 @@
 
 #include <mach/msm_rpcrouter.h>
 #include <mach/msm_battery.h>
+#ifdef CONFIG_BOARD_PW28
 #include <linux/suspend.h>
+#endif
 
 #define BATTERY_RPC_PROG	0x30000089
 #define BATTERY_RPC_VER_1_1	0x00010001
 #define BATTERY_RPC_VER_2_1	0x00020001
-#define BATTERY_RPC_VER_4_1 0x00040001
-#define BATTERY_RPC_VER_5_1 0x00050001
 
 #define BATTERY_RPC_CB_PROG	(BATTERY_RPC_PROG | 0x01000000)
 
@@ -58,8 +57,6 @@
 #define CHG_RPC_VER_1_1		0x00010001
 #define CHG_RPC_VER_1_3		0x00010003
 #define CHG_RPC_VER_2_2		0x00020002
-#define CHG_RPC_VER_3_1		0x00030001
-#define CHG_RPC_VER_4_1		0x00040001
 
 #define BATTERY_REGISTER_PROC				2
 #define BATTERY_MODIFY_CLIENT_PROC			4
@@ -73,8 +70,44 @@
 #define BATTERY_CB_ID_ALL_ACTIV     1
 #define BATTERY_CB_ID_LOW_VOL		2
 
-#define BATTERY_LOW		3200
-#define BATTERY_HIGH	4300
+#ifdef CONFIG_BOARD_PW28
+#define BATTERY_LOW            	3250	// 3500
+#else
+#define BATTERY_LOW            	3200
+#endif
+#define BATTERY_HIGH           	4300
+
+#define FEATRUE_BATTERY_CUST	/*SWH*/
+
+#ifdef FEATRUE_BATTERY_CUST
+
+#define BATTERY_PERCENT_0	0 
+#define BATTERY_PERCENT_1	15
+#define BATTERY_PERCENT_2	30
+#define BATTERY_PERCENT_3	55
+#define BATTERY_PERCENT_4	85
+#define BATTERY_PERCENT_5	99 
+
+#ifdef CONFIG_SIMCUST_BATTERY_PERCENT_FOR_PW28
+#define BATTERY_LEVEL_0      	BATTERY_LOW
+#define BATTERY_LEVEL_1      	3655
+#define BATTERY_LEVEL_2      	3760
+#define BATTERY_LEVEL_3      	3840
+#define BATTERY_LEVEL_4     	4000
+#define BATTERY_LEVEL_5     	(BATTERY_HIGH - 140)
+
+#define BATTERY_CHG_LEVEL_0    	BATTERY_LOW + 100
+#define BATTERY_CHG_LEVEL_1    	3880
+#define BATTERY_CHG_LEVEL_2    	3950
+#define BATTERY_CHG_LEVEL_3    	4040
+#define BATTERY_CHG_LEVEL_4    	4185
+#define BATTERY_CHG_LEVEL_5    	(BATTERY_HIGH - 75) // 4 // 4225
+#endif
+#define CAPACITY_PERCENTAGE(curV, vL, pL, vH, pH) (pL+((pH-pL)*(curV-vL)*100/(vH-vL))/100)
+
+static u32 msm_batt_capacity_cust(u32 current_voltage);
+
+#endif
 
 #define ONCRPC_CHG_GET_GENERAL_STATUS_PROC 	12
 #define ONCRPC_CHARGER_API_VERSIONS_PROC 	0xffffffff
@@ -95,6 +128,7 @@
 #endif
 
 #ifdef CONFIG_BOARD_PW28
+
 #define WAKE_UPDATE_BATT_INFO 2
 
 volatile int key_for_charger = 0;
@@ -116,6 +150,7 @@ struct timeval charger_time_val;
 extern int oem_rpc_client_register(int id);
 extern void set_data_to_arm9(int id, char *in, int insize);
 extern void request_suspend_state(suspend_state_t new_state);
+
 #endif
 
 enum {
@@ -221,7 +256,7 @@ struct rpc_reply_batt_chg_v1 {
 	u32	charger_type;
 	u32	battery_status;
 	u32	battery_level;
-	u32 battery_voltage;
+	u32     battery_voltage;
 	u32	battery_temp;
 };
 
@@ -357,7 +392,9 @@ static enum power_supply_property msm_batt_power_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CAPACITY,
+#ifdef CONFIG_BOARD_PW28
 	POWER_SUPPLY_PROP_TEMP,
+#endif
 };
 
 static int msm_batt_power_get_property(struct power_supply *psy,
@@ -389,9 +426,11 @@ static int msm_batt_power_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = msm_batt_info.batt_capacity;
 		break;
+#ifdef CONFIG_BOARD_PW28
 	case POWER_SUPPLY_PROP_TEMP:
 		val->intval = msm_batt_info.battery_temp * 10;
 		break;
+#endif
 	default:
 		return -EINVAL;
 	}
@@ -449,7 +488,6 @@ static u32 msm_batt_get_vbatt_voltage(void)
 static int msm_batt_get_batt_chg_status(void)
 {
 	int rc;
-
 	struct rpc_req_batt_chg {
 		struct rpc_request_hdr hdr;
 		u32 more_data;
@@ -505,7 +543,7 @@ static void msm_batt_update_psy_status(void)
 	battery_level = rep_batt_chg.v1.battery_level;
 	battery_voltage = rep_batt_chg.v1.battery_voltage;
 	battery_temp = rep_batt_chg.v1.battery_temp;
-	
+
 #ifdef CONFIG_BOARD_PW28
 	batt_chg_msg.charger_status = charger_status;
 	batt_chg_msg.charger_type = charger_type;
@@ -517,10 +555,14 @@ static void msm_batt_update_psy_status(void)
 
 	/* Make correction for battery status */
 	if (battery_status == BATTERY_STATUS_INVALID_v1) {
-		if (msm_batt_info.chg_api_version < CHG_RPC_VER_3_1)
+		if (msm_batt_info.chg_api_version < CHG_RPC_VER_2_2)
 			battery_status = BATTERY_STATUS_INVALID;
 	}
-  
+
+#ifdef FEATRUE_BATTERY_CUST
+	msm_batt_capacity_cust(battery_voltage);
+#endif    
+
 	if (charger_status == msm_batt_info.charger_status &&
 	    charger_type == msm_batt_info.charger_type &&
 	    battery_status == msm_batt_info.battery_status &&
@@ -710,7 +752,7 @@ static void msm_batt_update_psy_status(void)
 		if (!supp)
 			supp = msm_batt_info.current_ps;
 	}
-	
+
 #ifdef CONFIG_BOARD_PW28
 	if (battery_level == BATTERY_LEVEL_FULL) {
 		msm_batt_info.batt_status = POWER_SUPPLY_STATUS_FULL;
@@ -732,6 +774,7 @@ static void msm_batt_update_psy_status(void)
 	}
 }
 
+#ifdef CONFIG_BOARD_PW28
 void update_usb_to_gui(int i)
 {
 	struct	power_supply *supp;
@@ -803,6 +846,7 @@ void update_chg_to_gui(int i)
 	power_supply_changed(supp);
 }
 EXPORT_SYMBOL(update_chg_to_gui);
+
 #endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -949,12 +993,14 @@ void msm_batt_late_resume(struct early_suspend *h)
 		pr_err("%s: ERROR. invalid batt_handle\n", __func__);
 		return;
 	}
-
+#ifdef CONFIG_BOARD_PW28
 	msm_batt_update_psy_status();
 	rc = 0;
 	set_data_to_arm9(WAKE_UPDATE_BATT_INFO, (char *)&rc, sizeof(int));
+#endif
 	pr_debug("%s: exit\n", __func__);
 }
+#endif
 
 struct msm_batt_vbatt_filter_req {
 	u32 batt_handle;
@@ -1050,30 +1096,8 @@ struct batt_client_registration_req {
 	u32 batt_error;
 };
 
-struct batt_client_registration_req_4_1 {
-	/* The voltage at which callback (CB) should be called. */
-	u32 desired_batt_voltage;
-
-	/* The direction when the CB should be called. */
-	u32 voltage_direction;
-
-	/* The registered callback to be called when voltage and
-	 * direction specs are met. */
-	u32 batt_cb_id;
-
-	/* The call back data */
-	u32 cb_data;
-	u32 batt_error;
-};
-
 struct batt_client_registration_rep {
 	u32 batt_handle;
-};
-
-struct batt_client_registration_rep_4_1 {
-	u32 batt_handle;
-	u32 more_data;
-	u32 err;
 };
 
 static int msm_batt_register_arg_func(struct msm_rpc_client *batt_client,
@@ -1081,123 +1105,67 @@ static int msm_batt_register_arg_func(struct msm_rpc_client *batt_client,
 {
 	struct batt_client_registration_req *batt_reg_req =
 		(struct batt_client_registration_req *)data;
-
 	u32 *req = (u32 *)buf;
 	int size = 0;
 
 
-	if (msm_batt_info.batt_api_version == BATTERY_RPC_VER_4_1) {
-		*req = cpu_to_be32(batt_reg_req->desired_batt_voltage);
-		size += sizeof(u32);
-		req++;
+	*req = cpu_to_be32(batt_reg_req->desired_batt_voltage);
+	size += sizeof(u32);
+	req++;
 
-		*req = cpu_to_be32(batt_reg_req->voltage_direction);
-		size += sizeof(u32);
-		req++;
+	*req = cpu_to_be32(batt_reg_req->voltage_direction);
+	size += sizeof(u32);
+	req++;
 
-		*req = cpu_to_be32(batt_reg_req->batt_cb_id);
-		size += sizeof(u32);
-		req++;
+	*req = cpu_to_be32(batt_reg_req->batt_cb_id);
+	size += sizeof(u32);
+	req++;
 
-		*req = cpu_to_be32(batt_reg_req->cb_data);
-		size += sizeof(u32);
-		req++;
+	*req = cpu_to_be32(batt_reg_req->cb_data);
+	size += sizeof(u32);
+	req++;
 
-		*req = cpu_to_be32(batt_reg_req->batt_error);
-		size += sizeof(u32);
+	*req = cpu_to_be32(batt_reg_req->more_data);
+	size += sizeof(u32);
+	req++;
 
-		return size;
-	} else {
-		*req = cpu_to_be32(batt_reg_req->desired_batt_voltage);
-		size += sizeof(u32);
-		req++;
+	*req = cpu_to_be32(batt_reg_req->batt_error);
+	size += sizeof(u32);
 
-		*req = cpu_to_be32(batt_reg_req->voltage_direction);
-		size += sizeof(u32);
-		req++;
-
-		*req = cpu_to_be32(batt_reg_req->batt_cb_id);
-		size += sizeof(u32);
-		req++;
-
-		*req = cpu_to_be32(batt_reg_req->cb_data);
-		size += sizeof(u32);
-		req++;
-
-		*req = cpu_to_be32(batt_reg_req->more_data);
-		size += sizeof(u32);
-		req++;
-
-		*req = cpu_to_be32(batt_reg_req->batt_error);
-		size += sizeof(u32);
-
-		return size;
-	}
-
+	return size;
 }
 
 static int msm_batt_register_ret_func(struct msm_rpc_client *batt_client,
 				       void *buf, void *data)
 {
 	struct batt_client_registration_rep *data_ptr, *buf_ptr;
-	struct batt_client_registration_rep_4_1 *data_ptr_4_1, *buf_ptr_4_1;
 
-	if (msm_batt_info.batt_api_version == BATTERY_RPC_VER_4_1) {
-		data_ptr_4_1 = (struct batt_client_registration_rep_4_1 *)data;
-		buf_ptr_4_1 = (struct batt_client_registration_rep_4_1 *)buf;
+	data_ptr = (struct batt_client_registration_rep *)data;
+	buf_ptr = (struct batt_client_registration_rep *)buf;
 
-		data_ptr_4_1->batt_handle
-			= be32_to_cpu(buf_ptr_4_1->batt_handle);
-		data_ptr_4_1->more_data
-			= be32_to_cpu(buf_ptr_4_1->more_data);
-		data_ptr_4_1->err = be32_to_cpu(buf_ptr_4_1->err);
-		return 0;
-	} else {
-		data_ptr = (struct batt_client_registration_rep *)data;
-		buf_ptr = (struct batt_client_registration_rep *)buf;
+	data_ptr->batt_handle = be32_to_cpu(buf_ptr->batt_handle);
 
-		data_ptr->batt_handle = be32_to_cpu(buf_ptr->batt_handle);
-		return 0;
-	}
+	return 0;
 }
 
 static int msm_batt_register(u32 desired_batt_voltage,
 			     u32 voltage_direction, u32 batt_cb_id, u32 cb_data)
 {
 	struct batt_client_registration_req batt_reg_req;
-	struct batt_client_registration_req_4_1 batt_reg_req_4_1;
 	struct batt_client_registration_rep batt_reg_rep;
-	struct batt_client_registration_rep_4_1 batt_reg_rep_4_1;
-	void *request;
-	void *reply;
 	int rc;
 
-	if (msm_batt_info.batt_api_version == BATTERY_RPC_VER_4_1) {
-		batt_reg_req_4_1.desired_batt_voltage = desired_batt_voltage;
-		batt_reg_req_4_1.voltage_direction = voltage_direction;
-		batt_reg_req_4_1.batt_cb_id = batt_cb_id;
-		batt_reg_req_4_1.cb_data = cb_data;
-		batt_reg_req_4_1.batt_error = 1;
-		request = &batt_reg_req_4_1;
-	} else {
-		batt_reg_req.desired_batt_voltage = desired_batt_voltage;
-		batt_reg_req.voltage_direction = voltage_direction;
-		batt_reg_req.batt_cb_id = batt_cb_id;
-		batt_reg_req.cb_data = cb_data;
-		batt_reg_req.more_data = 1;
-		batt_reg_req.batt_error = 0;
-		request = &batt_reg_req;
-	}
-
-	if (msm_batt_info.batt_api_version == BATTERY_RPC_VER_4_1)
-		reply = &batt_reg_rep_4_1;
-	else
-		reply = &batt_reg_rep;
+	batt_reg_req.desired_batt_voltage = desired_batt_voltage;
+	batt_reg_req.voltage_direction = voltage_direction;
+	batt_reg_req.batt_cb_id = batt_cb_id;
+	batt_reg_req.cb_data = cb_data;
+	batt_reg_req.more_data = 1;
+	batt_reg_req.batt_error = 0;
 
 	rc = msm_rpc_client_req(msm_batt_info.batt_client,
 			BATTERY_REGISTER_PROC,
-			msm_batt_register_arg_func, request,
-			msm_batt_register_ret_func, reply,
+			msm_batt_register_arg_func, &batt_reg_req,
+			msm_batt_register_ret_func, &batt_reg_rep,
 			msecs_to_jiffies(BATT_RPC_TIMEOUT));
 
 	if (rc < 0) {
@@ -1205,17 +1173,9 @@ static int msm_batt_register(u32 desired_batt_voltage,
 		return rc;
 	}
 
-	if (msm_batt_info.batt_api_version == BATTERY_RPC_VER_4_1) {
-		if (batt_reg_rep_4_1.more_data != 0
-			&& batt_reg_rep_4_1.err
-				!= BATTERY_REGISTRATION_SUCCESSFUL) {
-			pr_err("%s: vBatt Registration Failed proc_num=%d\n"
-					, __func__, BATTERY_REGISTER_PROC);
-			return -EIO;
-		}
-		msm_batt_info.batt_handle = batt_reg_rep_4_1.batt_handle;
-	} else
-		msm_batt_info.batt_handle = batt_reg_rep.batt_handle;
+	msm_batt_info.batt_handle = batt_reg_rep.batt_handle;
+
+	pr_debug("%s: got handle = %d\n", __func__, msm_batt_info.batt_handle);
 
 	return 0;
 }
@@ -1341,6 +1301,83 @@ static u32 msm_batt_capacity(u32 current_voltage)
 		return (current_voltage - low_voltage) * 100
 			/ (high_voltage - low_voltage);
 }
+
+#ifdef FEATRUE_BATTERY_CUST
+static u32 msm_batt_capacity_cust(u32 current_voltage)
+{
+    static u32 once = 0;
+    static u32 pre_percentage = BATTERY_PERCENT_5;
+    u32 cur_percentage = BATTERY_PERCENT_5;
+
+    static u32 pre_status = CHARGER_TYPE_NONE;
+    u32 cur_status = msm_batt_info.charger_type;
+
+    if ((CHARGER_TYPE_USB_PC != cur_status) && (CHARGER_TYPE_USB_WALL != cur_status) &&
+	(CHARGER_TYPE_USB_CARKIT != cur_status) && (CHARGER_TYPE_WALL != cur_status))
+    {
+       // not charging...
+	   if (current_voltage <= BATTERY_LEVEL_0)
+    		cur_percentage =  BATTERY_PERCENT_0;
+    	else if ((BATTERY_LEVEL_0 < current_voltage ) && (current_voltage <= BATTERY_LEVEL_1))
+    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_LEVEL_0, BATTERY_PERCENT_0,BATTERY_LEVEL_1,BATTERY_PERCENT_1);
+    	else if ((BATTERY_LEVEL_1 < current_voltage ) && (current_voltage <= BATTERY_LEVEL_2))
+    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_LEVEL_1, BATTERY_PERCENT_1,BATTERY_LEVEL_2,BATTERY_PERCENT_2);
+    	else if ((BATTERY_LEVEL_2 < current_voltage ) && (current_voltage <= BATTERY_LEVEL_3))
+    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_LEVEL_2, BATTERY_PERCENT_2,BATTERY_LEVEL_3,BATTERY_PERCENT_3);
+    	else if ((BATTERY_LEVEL_3 < current_voltage ) && (current_voltage <= BATTERY_LEVEL_4))
+    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_LEVEL_3, BATTERY_PERCENT_3,BATTERY_LEVEL_4,BATTERY_PERCENT_4);
+    	else if ((BATTERY_LEVEL_4 < current_voltage ) && (current_voltage <=  BATTERY_LEVEL_5))
+    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_LEVEL_4, BATTERY_PERCENT_4,BATTERY_LEVEL_5,BATTERY_PERCENT_5);
+    	else
+    		cur_percentage = BATTERY_PERCENT_5;
+    }
+    else
+    {
+       // charging...
+    	if (current_voltage <= BATTERY_CHG_LEVEL_0)
+    		cur_percentage = BATTERY_PERCENT_0;
+    	else if ((BATTERY_CHG_LEVEL_0 < current_voltage ) && (current_voltage <= BATTERY_CHG_LEVEL_1))
+    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_CHG_LEVEL_0, BATTERY_PERCENT_0,BATTERY_CHG_LEVEL_1,BATTERY_PERCENT_1);
+    	else if ((BATTERY_CHG_LEVEL_1 < current_voltage ) && (current_voltage <= BATTERY_CHG_LEVEL_2))
+    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_CHG_LEVEL_1, BATTERY_PERCENT_1,BATTERY_CHG_LEVEL_2,BATTERY_PERCENT_2);
+    	else if ((BATTERY_CHG_LEVEL_2 < current_voltage ) && (current_voltage <= BATTERY_CHG_LEVEL_3))
+    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_CHG_LEVEL_2, BATTERY_PERCENT_2,BATTERY_CHG_LEVEL_3,BATTERY_PERCENT_3);
+    	else if ((BATTERY_CHG_LEVEL_3 < current_voltage ) && (current_voltage <= BATTERY_CHG_LEVEL_4))
+    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_CHG_LEVEL_3, BATTERY_PERCENT_3,BATTERY_CHG_LEVEL_4,BATTERY_PERCENT_4);
+    	else if ((BATTERY_CHG_LEVEL_4 < current_voltage ) && (current_voltage <=  BATTERY_CHG_LEVEL_5))
+    		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_CHG_LEVEL_4, BATTERY_PERCENT_4,BATTERY_CHG_LEVEL_5,BATTERY_PERCENT_5);
+    	else
+    		cur_percentage = BATTERY_PERCENT_5;
+    }
+
+    if (0 == once)
+    {
+        pre_percentage = cur_percentage;
+        once = 1;
+    }
+
+    if (pre_status != cur_status)
+    {
+    }
+
+        if ((CHARGER_TYPE_USB_PC != cur_status) && (CHARGER_TYPE_USB_WALL!= cur_status) &&
+		(CHARGER_TYPE_USB_CARKIT != cur_status) && (CHARGER_TYPE_WALL != cur_status))
+        {  // can only drop
+           cur_percentage = (cur_percentage < pre_percentage) ? cur_percentage : pre_percentage;
+           pre_percentage = cur_percentage;
+        }
+	else 
+        {  // can only rise
+           cur_percentage = (cur_percentage > pre_percentage) ? cur_percentage : pre_percentage;
+           pre_percentage = cur_percentage;
+        }
+
+    pre_status = cur_status;
+
+    return cur_percentage;
+        
+}
+#endif
 
 #ifndef CONFIG_BATTERY_MSM_FAKE
 int msm_batt_get_charger_api_version(void)
@@ -1480,7 +1517,9 @@ static int __devinit msm_batt_probe(struct platform_device *pdev)
 	int rc;
 	struct msm_psy_batt_pdata *pdata = pdev->dev.platform_data;
 
+#ifdef CONFIG_BOARD_PW28
 	oem_rpc_client_register(WAKE_UPDATE_BATT_INFO);
+#endif
 	if (pdev->id != -1) {
 		dev_err(&pdev->dev,
 			"%s: MSM chipsets Can only support one"
@@ -1530,7 +1569,11 @@ static int __devinit msm_batt_probe(struct platform_device *pdev)
 	msm_batt_info.voltage_max_design = pdata->voltage_max_design;
 	msm_batt_info.voltage_min_design = pdata->voltage_min_design;
 	msm_batt_info.batt_technology = pdata->batt_technology;
+#ifdef FEATRUE_BATTERY_CUST
+	msm_batt_info.calculate_capacity = msm_batt_capacity_cust;
+#else
 	msm_batt_info.calculate_capacity = pdata->calculate_capacity;
+#endif
 
 	if (!msm_batt_info.voltage_min_design)
 		msm_batt_info.voltage_min_design = BATTERY_LOW;
@@ -1616,35 +1659,19 @@ static int __devinit msm_batt_init_rpc(void)
 #ifdef CONFIG_BATTERY_MSM_FAKE
 	pr_info("Faking MSM battery\n");
 #else
-
 	msm_batt_info.chg_ep =
-		msm_rpc_connect_compatible(CHG_RPC_PROG, CHG_RPC_VER_4_1, 0);
-	msm_batt_info.chg_api_version =  CHG_RPC_VER_4_1;
+		msm_rpc_connect_compatible(CHG_RPC_PROG, CHG_RPC_VER_2_2, 0);
+
 	if (msm_batt_info.chg_ep == NULL) {
 		pr_err("%s: rpc connect CHG_RPC_PROG = NULL\n", __func__);
 		return -ENODEV;
-	}
-
-	if (IS_ERR(msm_batt_info.chg_ep)) {
-		msm_batt_info.chg_ep = msm_rpc_connect_compatible(
-				CHG_RPC_PROG, CHG_RPC_VER_3_1, 0);
-		msm_batt_info.chg_api_version =  CHG_RPC_VER_3_1;
-	}
-	if (IS_ERR(msm_batt_info.chg_ep)) {
+	} else if (IS_ERR(msm_batt_info.chg_ep)) {
 		msm_batt_info.chg_ep = msm_rpc_connect_compatible(
 				CHG_RPC_PROG, CHG_RPC_VER_1_1, 0);
 		msm_batt_info.chg_api_version =  CHG_RPC_VER_1_1;
-	}
-	if (IS_ERR(msm_batt_info.chg_ep)) {
-		msm_batt_info.chg_ep = msm_rpc_connect_compatible(
-				CHG_RPC_PROG, CHG_RPC_VER_1_3, 0);
-		msm_batt_info.chg_api_version =  CHG_RPC_VER_1_3;
-	}
-	if (IS_ERR(msm_batt_info.chg_ep)) {
-		msm_batt_info.chg_ep = msm_rpc_connect_compatible(
-				CHG_RPC_PROG, CHG_RPC_VER_2_2, 0);
+	} else
 		msm_batt_info.chg_api_version =  CHG_RPC_VER_2_2;
-	}
+
 	if (IS_ERR(msm_batt_info.chg_ep)) {
 		rc = PTR_ERR(msm_batt_info.chg_ep);
 		pr_err("%s: FAIL: rpc connect for CHG_RPC_PROG. rc=%d\n",
@@ -1661,39 +1688,25 @@ static int __devinit msm_batt_init_rpc(void)
 	/* Fall back to 1.1 for default */
 	if (msm_batt_info.chg_api_version < 0)
 		msm_batt_info.chg_api_version = CHG_RPC_VER_1_1;
-	msm_batt_info.batt_api_version =  BATTERY_RPC_VER_4_1;
 
 	msm_batt_info.batt_client =
 		msm_rpc_register_client("battery", BATTERY_RPC_PROG,
-					BATTERY_RPC_VER_4_1,
+					BATTERY_RPC_VER_2_1,
 					1, msm_batt_cb_func);
 
 	if (msm_batt_info.batt_client == NULL) {
 		pr_err("%s: FAIL: rpc_register_client. batt_client=NULL\n",
 		       __func__);
 		return -ENODEV;
-	}
-	if (IS_ERR(msm_batt_info.batt_client)) {
+	} else if (IS_ERR(msm_batt_info.batt_client)) {
 		msm_batt_info.batt_client =
 			msm_rpc_register_client("battery", BATTERY_RPC_PROG,
 						BATTERY_RPC_VER_1_1,
 						1, msm_batt_cb_func);
 		msm_batt_info.batt_api_version =  BATTERY_RPC_VER_1_1;
-	}
-	if (IS_ERR(msm_batt_info.batt_client)) {
-		msm_batt_info.batt_client =
-			msm_rpc_register_client("battery", BATTERY_RPC_PROG,
-						BATTERY_RPC_VER_2_1,
-						1, msm_batt_cb_func);
+	} else
 		msm_batt_info.batt_api_version =  BATTERY_RPC_VER_2_1;
-	}
-	if (IS_ERR(msm_batt_info.batt_client)) {
-		msm_batt_info.batt_client =
-			msm_rpc_register_client("battery", BATTERY_RPC_PROG,
-						BATTERY_RPC_VER_5_1,
-						1, msm_batt_cb_func);
-		msm_batt_info.batt_api_version =  BATTERY_RPC_VER_5_1;
-	}
+
 	if (IS_ERR(msm_batt_info.batt_client)) {
 		rc = PTR_ERR(msm_batt_info.batt_client);
 		pr_err("%s: ERROR: rpc_register_client: rc = %d\n ",
