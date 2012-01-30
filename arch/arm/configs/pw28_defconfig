@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.32.9
-# Tue Jan 10 00:13:08 2012
+# Sun Jan 29 20:32:32 2012
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1781,7 +1781,9 @@ CONFIG_ANDROID_LOW_MEMORY_KILLER=y
 #
 # CONFIG_RAR_REGISTER is not set
 # CONFIG_IIO is not set
+CONFIG_XVMALLOC=y
 CONFIG_ZRAM=y
+CONFIG_ZRAM_NUM_DEVICES=1
 # CONFIG_ZRAM_DEBUG is not set
 # CONFIG_NEW_HCIT is not set
 
