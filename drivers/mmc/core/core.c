@@ -223,7 +223,7 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 
 	mmc_start_request(host, mrq);
 
-	wait_for_completion_io(&complete);
+	wait_for_completion(&complete);
 }
 
 EXPORT_SYMBOL(mmc_wait_for_req);
@@ -310,7 +310,7 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 			 * The limit is really 250 ms, but that is
 			 * insufficient for some crappy cards.
 			 */
-			limit_us = 800000;
+			limit_us = 300000;
 		else
 			limit_us = 100000;
 
@@ -530,13 +530,6 @@ int mmc_try_claim_host(struct mmc_host *host)
 }
 EXPORT_SYMBOL(mmc_try_claim_host);
 
-/**
- *     mmc_do_release_host - release a claimed host
- *     @host: mmc host to release
- *
- *     If you successfully claimed a host, this function will
- *     release it again.
- */
 void mmc_do_release_host(struct mmc_host *host)
 {
 	unsigned long flags;
@@ -1005,7 +998,7 @@ int mmc_resume_bus(struct mmc_host *host)
 		host->bus_ops->resume(host);
 	}
 
-	if (host->bus_ops && host->bus_ops->detect && !host->bus_dead)
+	if (host->bus_ops->detect && !host->bus_dead)
 		host->bus_ops->detect(host);
 
 	mmc_bus_put(host);
@@ -1100,15 +1093,14 @@ void mmc_rescan(struct work_struct *work)
 	mmc_bus_get(host);
 
 	/* if there is a card registered, check whether it is still present */
-	if ((host->bus_ops != NULL) && host->bus_ops->detect &&
-		!host->bus_dead) {
+	if ((host->bus_ops != NULL) && host->bus_ops->detect && !host->bus_dead)
 		host->bus_ops->detect(host);
-		/* If the card was removed the bus will be marked
-		 * as dead - extend the wakelock so userspace
-		 * can respond */
-		if (host->bus_dead)
-			extend_wakelock = 1;
-	}
+
+	/* If the card was removed the bus will be marked
+	 * as dead - extend the wakelock so userspace
+	 * can respond */
+	if (host->bus_dead)
+		extend_wakelock = 1;
 
 	mmc_bus_put(host);
 
