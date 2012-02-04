@@ -831,7 +831,7 @@ void update_chg_to_gui(int i)
 
 	msm_batt_info.charger_type = i;
 
-	supp = &msm_psy_ac;
+	supp = &msm_psy_usb;
 	msm_batt_info.current_chg_source = i;			
 	msm_batt_info.batt_status = i;
 	msm_batt_info.current_ps = supp;
