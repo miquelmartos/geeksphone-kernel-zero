@@ -251,13 +251,13 @@ enum chg_battery_level_type {
 #ifndef CONFIG_BATTERY_MSM_FAKE
 struct rpc_reply_batt_chg_v1 {
 	struct rpc_reply_hdr hdr;
-	u32 	more_data;
+	u32 more_data;
 
 	u32	charger_status;
 	u32	charger_type;
 	u32	battery_status;
 	u32	battery_level;
-	u32     battery_voltage;
+	u32 battery_voltage;
 	u32	battery_temp;
 };
 
@@ -531,9 +531,9 @@ static void msm_batt_update_psy_status(void)
 	u32	charger_type;
 	u32	battery_status;
 	u32	battery_level;
-	u32     battery_voltage;
+	u32 battery_voltage;
 	u32	battery_temp;
-	struct	power_supply	*supp;
+	struct power_supply *supp;
 
 	if (msm_batt_get_batt_chg_status())
 		return;
@@ -594,13 +594,13 @@ static void msm_batt_update_psy_status(void)
 	}
 
 	if (msm_batt_info.charger_type != charger_type) {
-		if (charger_type == CHARGER_TYPE_USB_WALL ||
-		    charger_type == CHARGER_TYPE_USB_PC ||
+		if (charger_type == CHARGER_TYPE_USB_PC ||
 		    charger_type == CHARGER_TYPE_USB_CARKIT) {
 			DBG_LIMIT("BATT: USB charger plugged in\n");
 			msm_batt_info.current_chg_source = USB_CHG;
 			supp = &msm_psy_usb;
-		} else if (charger_type == CHARGER_TYPE_WALL) {
+        } else if (charger_type == CHARGER_TYPE_USB_WALL ||
+    	   		   charger_type == CHARGER_TYPE_WALL) {
 			DBG_LIMIT("BATT: AC Wall changer plugged in\n");
 			msm_batt_info.current_chg_source = AC_CHG;
 			supp = &msm_psy_ac;
@@ -795,7 +795,7 @@ void update_usb_to_gui(int i)
 		msm_batt_info.current_chg_source = AC_CHG;			
 		msm_batt_info.current_ps = supp;
 		power_supply_changed(supp);
-	
+
 		msm_batt_info.batt_status = POWER_SUPPLY_STATUS_CHARGING;
 		supp = &msm_psy_batt;
 		msm_batt_info.current_ps = supp;
@@ -820,8 +820,8 @@ void update_usb_to_gui(int i)
 		power_supply_changed(supp);
 		request_suspend_state(PM_SUSPEND_ON);
 	}
-
-	pr_info("%s ---\n", __func__);
+	msm_batt_update_psy_status();
+//	pr_info("%s ---\n", __func__);
 }
 EXPORT_SYMBOL(update_usb_to_gui);
 
@@ -1257,7 +1257,6 @@ static int msm_batt_cleanup(void)
 
 	if (msm_batt_info.msm_psy_ac)
 		power_supply_unregister(msm_batt_info.msm_psy_ac);
-
 	if (msm_batt_info.msm_psy_usb)
 		power_supply_unregister(msm_batt_info.msm_psy_usb);
 	if (msm_batt_info.msm_psy_batt)
@@ -1307,8 +1306,8 @@ static u32 msm_batt_capacity_cust(u32 current_voltage)
     if ((CHARGER_TYPE_USB_PC != cur_status) && (CHARGER_TYPE_USB_WALL != cur_status) &&
 	(CHARGER_TYPE_USB_CARKIT != cur_status) && (CHARGER_TYPE_WALL != cur_status))
     {
-       // not charging...
-	   if (current_voltage <= BATTERY_LEVEL_0)
+        // not charging...
+    	if (current_voltage <= BATTERY_LEVEL_0)
     		cur_percentage =  BATTERY_PERCENT_0;
     	else if ((BATTERY_LEVEL_0 < current_voltage ) && (current_voltage <= BATTERY_LEVEL_1))
     		cur_percentage = CAPACITY_PERCENTAGE(current_voltage, BATTERY_LEVEL_0, BATTERY_PERCENT_0,BATTERY_LEVEL_1,BATTERY_PERCENT_1);
@@ -1325,7 +1324,7 @@ static u32 msm_batt_capacity_cust(u32 current_voltage)
     }
     else
     {
-       // charging...
+        // charging...
     	if (current_voltage <= BATTERY_CHG_LEVEL_0)
     		cur_percentage = BATTERY_PERCENT_0;
     	else if ((BATTERY_CHG_LEVEL_0 < current_voltage ) && (current_voltage <= BATTERY_CHG_LEVEL_1))
@@ -1352,17 +1351,17 @@ static u32 msm_batt_capacity_cust(u32 current_voltage)
     {
     }
 
-        if ((CHARGER_TYPE_USB_PC != cur_status) && (CHARGER_TYPE_USB_WALL != cur_status) &&
-		(CHARGER_TYPE_USB_CARKIT != cur_status) && (CHARGER_TYPE_WALL != cur_status))
-        {  // can only drop
-           cur_percentage = (cur_percentage < pre_percentage) ? cur_percentage : pre_percentage;
-           pre_percentage = cur_percentage;
-        }
-	else 
-        {  // can only rise
-           cur_percentage = (cur_percentage > pre_percentage) ? cur_percentage : pre_percentage;
-           pre_percentage = cur_percentage;
-        }
+    if ((CHARGER_TYPE_USB_PC != cur_status) && (CHARGER_TYPE_USB_WALL != cur_status) &&
+    (CHARGER_TYPE_USB_CARKIT != cur_status) && (CHARGER_TYPE_WALL != cur_status))
+    {   // can only drop
+    	cur_percentage = (cur_percentage < pre_percentage) ? cur_percentage : pre_percentage;
+    	pre_percentage = cur_percentage;
+    }
+    else 
+    {   // can only rise
+    	cur_percentage = (cur_percentage > pre_percentage) ? cur_percentage : pre_percentage;
+    	pre_percentage = cur_percentage;
+    }
 
     pre_status = cur_status;
 
@@ -1635,9 +1634,31 @@ static int __devexit msm_batt_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#if defined CONFIG_PM
+/* Añadido resume para solventar problemas al salir del modo suspensión
+   con el cargador conectado.*/
+static int  msm_batt_resume(struct platform_device *pdev)
+{
+	int rc;
+	msm_batt_update_psy_status();
+	set_data_to_arm9(WAKE_UPDATE_BATT_INFO,(char *)&rc,sizeof(int));
+	return 0;
+}
+
+static int msm_batt_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	msm_batt_update_psy_status();
+	return 0;
+}
+#endif
+
 static struct platform_driver msm_batt_driver = {
 	.probe = msm_batt_probe,
 	.remove = __devexit_p(msm_batt_remove),
+#if defined CONFIG_PM
+	.suspend = msm_batt_suspend,
+	.resume = msm_batt_resume,
+#endif
 	.driver = {
 		   .name = "msm-battery",
 		   .owner = THIS_MODULE,
