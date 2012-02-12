@@ -594,13 +594,13 @@ static void msm_batt_update_psy_status(void)
 	}
 
 	if (msm_batt_info.charger_type != charger_type) {
-		if (charger_type == CHARGER_TYPE_USB_PC ||
+		if (charger_type == CHARGER_TYPE_USB_WALL ||
+		    charger_type == CHARGER_TYPE_USB_PC ||
 		    charger_type == CHARGER_TYPE_USB_CARKIT) {
 			DBG_LIMIT("BATT: USB charger plugged in\n");
 			msm_batt_info.current_chg_source = USB_CHG;
 			supp = &msm_psy_usb;
-        } else if (charger_type == CHARGER_TYPE_USB_WALL ||
-    	   		   charger_type == CHARGER_TYPE_WALL) {
+        } else if (charger_type == CHARGER_TYPE_WALL) {
 			DBG_LIMIT("BATT: AC Wall changer plugged in\n");
 			msm_batt_info.current_chg_source = AC_CHG;
 			supp = &msm_psy_ac;
@@ -820,8 +820,8 @@ void update_usb_to_gui(int i)
 		power_supply_changed(supp);
 		request_suspend_state(PM_SUSPEND_ON);
 	}
-	msm_batt_update_psy_status();
-//	pr_info("%s ---\n", __func__);
+
+	pr_info("%s ---\n", __func__);
 }
 EXPORT_SYMBOL(update_usb_to_gui);
 
@@ -1634,31 +1634,9 @@ static int __devexit msm_batt_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#if defined CONFIG_PM
-/* Añadido resume para solventar problemas al salir del modo suspensión
-   con el cargador conectado.*/
-static int  msm_batt_resume(struct platform_device *pdev)
-{
-	int rc;
-	msm_batt_update_psy_status();
-	set_data_to_arm9(WAKE_UPDATE_BATT_INFO,(char *)&rc,sizeof(int));
-	return 0;
-}
-
-static int msm_batt_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	msm_batt_update_psy_status();
-	return 0;
-}
-#endif
-
 static struct platform_driver msm_batt_driver = {
 	.probe = msm_batt_probe,
 	.remove = __devexit_p(msm_batt_remove),
-#if defined CONFIG_PM
-	.suspend = msm_batt_suspend,
-	.resume = msm_batt_resume,
-#endif
 	.driver = {
 		   .name = "msm-battery",
 		   .owner = THIS_MODULE,
