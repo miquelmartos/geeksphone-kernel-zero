@@ -600,7 +600,7 @@ static void msm_batt_update_psy_status(void)
 			DBG_LIMIT("BATT: USB charger plugged in\n");
 			msm_batt_info.current_chg_source = USB_CHG;
 			supp = &msm_psy_usb;
-        } else if (charger_type == CHARGER_TYPE_WALL) {
+		} else if (charger_type == CHARGER_TYPE_WALL) {
 			DBG_LIMIT("BATT: AC Wall changer plugged in\n");
 			msm_batt_info.current_chg_source = AC_CHG;
 			supp = &msm_psy_ac;
@@ -765,81 +765,6 @@ static void msm_batt_update_psy_status(void)
 		power_supply_changed(supp);
 	}
 }
-
-#ifdef CONFIG_BOARD_PW28
-void update_usb_to_gui(int i)
-{
-	struct	power_supply *supp;
-
-	pr_info("%s i=%d +++\n", __func__, i);
-
-	if (i != CHARGER_TYPE_NONE) {
-		do_gettimeofday(&charger_time_val);
-		pr_info("*** start charging second: %ld ***\n", charger_time_val.tv_sec);
-	}
-
-	msm_batt_info.charger_type = i;
-
-	if (i == CHARGER_TYPE_USB_WALL || i == CHARGER_TYPE_USB_PC || i == CHARGER_TYPE_USB_CARKIT) {
-		supp = &msm_psy_usb;
-		msm_batt_info.current_chg_source = USB_CHG;			
-		msm_batt_info.current_ps = supp;
-		power_supply_changed(supp);
-
-		msm_batt_info.batt_status = POWER_SUPPLY_STATUS_CHARGING;
-		supp = &msm_psy_batt;
-		msm_batt_info.current_ps = supp;
-		power_supply_changed(supp);
-	} else if (i == CHARGER_TYPE_WALL) {
-		supp = &msm_psy_ac;
-		msm_batt_info.current_chg_source = AC_CHG;			
-		msm_batt_info.current_ps = supp;
-		power_supply_changed(supp);
-
-		msm_batt_info.batt_status = POWER_SUPPLY_STATUS_CHARGING;
-		supp = &msm_psy_batt;
-		msm_batt_info.current_ps = supp;
-		power_supply_changed(supp);
-	} else if (i == CHARGER_TYPE_NONE) {
-		if (msm_batt_info.current_chg_source == USB_CHG) {
-			supp = &msm_psy_usb;
-			msm_batt_info.current_chg_source = 0;			
-			msm_batt_info.current_ps = supp;
-			power_supply_changed(supp);
-
-		} else if (msm_batt_info.current_chg_source == AC_CHG) {
-			supp = &msm_psy_ac;
-			msm_batt_info.current_chg_source = 0;			
-			msm_batt_info.current_ps = supp;
-			power_supply_changed(supp);
-		}
-
-		msm_batt_info.batt_status = POWER_SUPPLY_STATUS_NOT_CHARGING;	
-		supp = &msm_psy_batt;
-		msm_batt_info.current_ps = supp;
-		power_supply_changed(supp);
-		request_suspend_state(PM_SUSPEND_ON);
-	}
-
-	pr_info("%s ---\n", __func__);
-}
-EXPORT_SYMBOL(update_usb_to_gui);
-
-void update_chg_to_gui(int i)
-{
-	struct	power_supply *supp;
-
-	msm_batt_info.charger_type = i;
-
-	supp = &msm_psy_usb;
-	msm_batt_info.current_chg_source = i;			
-	msm_batt_info.batt_status = i;
-	msm_batt_info.current_ps = supp;
-	power_supply_changed(supp);
-}
-EXPORT_SYMBOL(update_chg_to_gui);
-
-#endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 struct batt_modify_client_req {

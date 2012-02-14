@@ -46,8 +46,6 @@
 #include <linux/uaccess.h>
 #include <linux/wakelock.h>
 
-extern void update_usb_to_gui(int i);
-
 static const char driver_name[] = "msm72k_udc";
 
 /* #define DEBUG */
@@ -283,15 +281,9 @@ static ssize_t print_switch_state(struct switch_dev *sdev, char *buf)
 static inline enum chg_type usb_get_chg_type(struct usb_info *ui)
 {
 	if ((readl(USB_PORTSC) & PORTSC_LS) == PORTSC_LS)
-	{
-		update_usb_to_gui(3);
 		return USB_CHG_TYPE__WALLCHARGER;
-	}
 	else
-	{
-		update_usb_to_gui(2);
 		return USB_CHG_TYPE__SDP;
-	}
 }
 
 #define USB_WALLCHARGER_CHG_CURRENT 1800
@@ -1525,8 +1517,6 @@ static void usb_do_work(struct work_struct *w)
 
 				dev_dbg(&ui->pdev->dev,
 					"msm72k_udc: ONLINE -> OFFLINE\n");
-
-				update_usb_to_gui(0);
 
 				atomic_set(&ui->running, 0);
 				atomic_set(&ui->remote_wakeup, 0);
