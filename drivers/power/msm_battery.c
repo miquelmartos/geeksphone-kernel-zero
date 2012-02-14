@@ -910,7 +910,7 @@ void msm_batt_late_resume(struct early_suspend *h)
 		pr_err("%s: ERROR. invalid batt_handle\n", __func__);
 		return;
 	}
-#ifdef CONFIG_BOARD_PW28
+#ifndef CONFIG_BOARD_PW28
 	msm_batt_update_psy_status();
 	rc = 0;
 	set_data_to_arm9(WAKE_UPDATE_BATT_INFO, (char *)&rc, sizeof(int));
