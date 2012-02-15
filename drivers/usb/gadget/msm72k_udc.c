@@ -46,6 +46,8 @@
 #include <linux/uaccess.h>
 #include <linux/wakelock.h>
 
+extern void update_usb_to_gui(int i);
+
 static const char driver_name[] = "msm72k_udc";
 
 /* #define DEBUG */
@@ -278,12 +280,32 @@ static ssize_t print_switch_state(struct switch_dev *sdev, char *buf)
 	return sprintf(buf, "%s\n", sdev->state ? "online" : "offline");
 }
 
+#define USB_CHARGER_MASK 0x0200
+#define WALL_CHARGER_MASK 0x0800
+#define USB_WALL_CHARGER_MASK 0x0c00
+
+extern int get_charging_state(void);
+
 static inline enum chg_type usb_get_chg_type(struct usb_info *ui)
 {
-	if ((readl(USB_PORTSC) & PORTSC_LS) == PORTSC_LS)
-		return USB_CHG_TYPE__WALLCHARGER;
-	else
+	unsigned long usb_portsc_v = 0;
+	usb_portsc_v = readl(USB_PORTSC);
+//	printk(KERN_ERR "usb_portsc 0x%x",usb_portsc_v);
+	if (USB_CHARGER_MASK & usb_portsc_v)
+	{
+		update_usb_to_gui(2);
 		return USB_CHG_TYPE__SDP;
+	}
+	else if (WALL_CHARGER_MASK & usb_portsc_v)
+	{
+		update_usb_to_gui(3);
+		return USB_CHG_TYPE__WALLCHARGER;
+	}
+	else if (USB_WALL_CHARGER_MASK & usb_portsc_v)
+	{
+		update_usb_to_gui(3);
+		return USB_CHG_TYPE__WALLCHARGER;
+	}
 }
 
 #define USB_WALLCHARGER_CHG_CURRENT 1800
@@ -1517,6 +1539,8 @@ static void usb_do_work(struct work_struct *w)
 
 				dev_dbg(&ui->pdev->dev,
 					"msm72k_udc: ONLINE -> OFFLINE\n");
+
+				update_usb_to_gui(0);
 
 				atomic_set(&ui->running, 0);
 				atomic_set(&ui->remote_wakeup, 0);

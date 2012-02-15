@@ -594,13 +594,14 @@ static void msm_batt_update_psy_status(void)
 	}
 
 	if (msm_batt_info.charger_type != charger_type) {
-		if (charger_type == CHARGER_TYPE_USB_WALL ||
-			charger_type == CHARGER_TYPE_USB_PC ||
-			charger_type == CHARGER_TYPE_USB_CARKIT ||
-			charger_type == CHARGER_TYPE_WALL) {
+		if (charger_type == CHARGER_TYPE_USB_PC) {
 			DBG_LIMIT("BATT: USB charger plugged in\n");
 			msm_batt_info.current_chg_source = USB_CHG;
 			supp = &msm_psy_usb;
+        } else if (charger_type == CHARGER_TYPE_USB_WALL) {
+			DBG_LIMIT("BATT: AC Wall changer plugged in\n");
+			msm_batt_info.current_chg_source = AC_CHG;
+			supp = &msm_psy_ac;
 		} else {
 			if (msm_batt_info.current_chg_source & AC_CHG)
 				DBG_LIMIT("BATT: AC Wall charger removed\n");
@@ -763,6 +764,66 @@ static void msm_batt_update_psy_status(void)
 	}
 }
 
+#ifdef CONFIG_BOARD_PW28
+void update_usb_to_gui(int i)
+{
+	struct	power_supply *supp;
+
+	pr_info("%s i=%d +++\n", __func__, i);
+
+	if (i != CHARGER_TYPE_NONE) {
+		do_gettimeofday(&charger_time_val);
+		pr_info("*** start charging second: %ld ***\n", charger_time_val.tv_sec);
+	}
+
+	msm_batt_info.charger_type = i;
+
+	if (i == CHARGER_TYPE_USB_PC) {
+		supp = &msm_psy_usb;
+		msm_batt_info.current_chg_source = USB_CHG;			
+		msm_batt_info.current_ps = supp;
+		power_supply_changed(supp);
+
+		msm_batt_info.batt_status = POWER_SUPPLY_STATUS_CHARGING;
+		supp = &msm_psy_batt;
+		msm_batt_info.current_ps = supp;
+		power_supply_changed(supp);
+	} else if (i == CHARGER_TYPE_USB_WALL) {
+		supp = &msm_psy_ac;
+		msm_batt_info.current_chg_source = AC_CHG;			
+		msm_batt_info.current_ps = supp;
+		power_supply_changed(supp);
+
+		msm_batt_info.batt_status = POWER_SUPPLY_STATUS_CHARGING;
+		supp = &msm_psy_batt;
+		msm_batt_info.current_ps = supp;
+		power_supply_changed(supp);
+	} else if (i == CHARGER_TYPE_NONE) {
+		if (msm_batt_info.current_chg_source == USB_CHG) {
+			supp = &msm_psy_usb;
+			msm_batt_info.current_chg_source = 0;			
+			msm_batt_info.current_ps = supp;
+			power_supply_changed(supp);
+
+		} else if (msm_batt_info.current_chg_source == AC_CHG) {
+			supp = &msm_psy_ac;
+			msm_batt_info.current_chg_source = 0;			
+			msm_batt_info.current_ps = supp;
+			power_supply_changed(supp);
+		}
+
+		msm_batt_info.batt_status = POWER_SUPPLY_STATUS_NOT_CHARGING;	
+		supp = &msm_psy_batt;
+		msm_batt_info.current_ps = supp;
+		power_supply_changed(supp);
+		request_suspend_state(PM_SUSPEND_ON);
+	}
+	msm_batt_update_psy_status();
+	pr_info("%s ---\n", __func__);
+}
+EXPORT_SYMBOL(update_usb_to_gui);
+#endif
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 struct batt_modify_client_req {
 
@@ -907,7 +968,7 @@ void msm_batt_late_resume(struct early_suspend *h)
 		pr_err("%s: ERROR. invalid batt_handle\n", __func__);
 		return;
 	}
-#ifndef CONFIG_BOARD_PW28
+#ifdef CONFIG_BOARD_PW28
 	msm_batt_update_psy_status();
 	rc = 0;
 	set_data_to_arm9(WAKE_UPDATE_BATT_INFO, (char *)&rc, sizeof(int));
@@ -1225,8 +1286,7 @@ static u32 msm_batt_capacity_cust(u32 current_voltage)
     static u32 pre_status = CHARGER_TYPE_NONE;
     u32 cur_status = msm_batt_info.charger_type;
 
-    if ((CHARGER_TYPE_USB_PC != cur_status) && (CHARGER_TYPE_USB_WALL != cur_status) &&
-	(CHARGER_TYPE_USB_CARKIT != cur_status) && (CHARGER_TYPE_WALL != cur_status))
+    if ((CHARGER_TYPE_USB_PC != cur_status) && (CHARGER_TYPE_USB_WALL != cur_status))
     {
         // not charging...
     	if (current_voltage <= BATTERY_LEVEL_0)
@@ -1273,8 +1333,7 @@ static u32 msm_batt_capacity_cust(u32 current_voltage)
     {
     }
 
-    if ((CHARGER_TYPE_USB_PC != cur_status) && (CHARGER_TYPE_USB_WALL != cur_status) &&
-    (CHARGER_TYPE_USB_CARKIT != cur_status) && (CHARGER_TYPE_WALL != cur_status))
+    if ((CHARGER_TYPE_USB_PC != cur_status) && (CHARGER_TYPE_USB_WALL != cur_status))
     {   // can only drop
     	cur_percentage = (cur_percentage < pre_percentage) ? cur_percentage : pre_percentage;
     	pre_percentage = cur_percentage;
