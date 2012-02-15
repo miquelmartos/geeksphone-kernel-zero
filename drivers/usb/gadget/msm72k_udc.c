@@ -306,6 +306,17 @@ static inline enum chg_type usb_get_chg_type(struct usb_info *ui)
 		update_usb_to_gui(3);
 		return USB_CHG_TYPE__WALLCHARGER;
 	}
+
+	if ((readl(USB_PORTSC) & PORTSC_LS) == PORTSC_LS)
+	{
+		update_usb_to_gui(3);
+		return USB_CHG_TYPE__WALLCHARGER;
+	}
+	else
+	{
+		update_usb_to_gui(2);
+		return USB_CHG_TYPE__SDP;
+	}
 }
 
 #define USB_WALLCHARGER_CHG_CURRENT 1800
