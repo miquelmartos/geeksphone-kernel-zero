@@ -598,7 +598,7 @@ static void msm_batt_update_psy_status(void)
 			DBG_LIMIT("BATT: USB charger plugged in\n");
 			msm_batt_info.current_chg_source = USB_CHG;
 			supp = &msm_psy_usb;
-        } else if (charger_type == CHARGER_TYPE_USB_WALL) {
+        } else if (charger_type == CHARGER_TYPE_WALL) {
 			DBG_LIMIT("BATT: AC Wall changer plugged in\n");
 			msm_batt_info.current_chg_source = AC_CHG;
 			supp = &msm_psy_ac;
@@ -788,7 +788,7 @@ void update_usb_to_gui(int i)
 		supp = &msm_psy_batt;
 		msm_batt_info.current_ps = supp;
 		power_supply_changed(supp);
-	} else if (i == CHARGER_TYPE_USB_WALL) {
+	} else if (i == CHARGER_TYPE_WALL) {
 		supp = &msm_psy_ac;
 		msm_batt_info.current_chg_source = AC_CHG;			
 		msm_batt_info.current_ps = supp;
@@ -818,7 +818,7 @@ void update_usb_to_gui(int i)
 		power_supply_changed(supp);
 		request_suspend_state(PM_SUSPEND_ON);
 	}
-	msm_batt_update_psy_status();
+
 	pr_info("%s ---\n", __func__);
 }
 EXPORT_SYMBOL(update_usb_to_gui);
@@ -1286,7 +1286,7 @@ static u32 msm_batt_capacity_cust(u32 current_voltage)
     static u32 pre_status = CHARGER_TYPE_NONE;
     u32 cur_status = msm_batt_info.charger_type;
 
-    if ((CHARGER_TYPE_USB_PC != cur_status) && (CHARGER_TYPE_USB_WALL != cur_status))
+    if ((CHARGER_TYPE_USB_PC != cur_status) && (CHARGER_TYPE_WALL != cur_status))
     {
         // not charging...
     	if (current_voltage <= BATTERY_LEVEL_0)
@@ -1333,7 +1333,7 @@ static u32 msm_batt_capacity_cust(u32 current_voltage)
     {
     }
 
-    if ((CHARGER_TYPE_USB_PC != cur_status) && (CHARGER_TYPE_USB_WALL != cur_status))
+    if ((CHARGER_TYPE_USB_PC != cur_status) && (CHARGER_TYPE_WALL != cur_status))
     {   // can only drop
     	cur_percentage = (cur_percentage < pre_percentage) ? cur_percentage : pre_percentage;
     	pre_percentage = cur_percentage;
