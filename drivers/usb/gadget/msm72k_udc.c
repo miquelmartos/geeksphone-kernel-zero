@@ -145,7 +145,7 @@ static void usb_do_remote_wakeup(struct work_struct *w);
 
 #define USB_CHG_DET_DELAY	msecs_to_jiffies(1000)
 #define REMOTE_WAKEUP_DELAY	msecs_to_jiffies(1000)
-#define PHY_STATUS_CHECK_DELAY (jiffies + msecs_to_jiffies(1000))
+#define PHY_STATUS_CHECK_DELAY	(jiffies + msecs_to_jiffies(1000))
 
 struct usb_info {
 	/* lock for register/queue/device state changes */
@@ -180,6 +180,7 @@ struct usb_info {
 	** so they are OUT0, OUT1, ... OUT15, IN0, IN1, ... IN15
 	*/
 	struct msm_endpoint ept[32];
+
 
 	/* max power requested by selected configuration */
 	unsigned b_max_pow;
@@ -280,33 +281,8 @@ static ssize_t print_switch_state(struct switch_dev *sdev, char *buf)
 	return sprintf(buf, "%s\n", sdev->state ? "online" : "offline");
 }
 
-#define USB_CHARGER_MASK 0x0200
-#define WALL_CHARGER_MASK 0x0800
-#define USB_WALL_CHARGER_MASK 0x0c00
-
-extern int get_charging_state(void);
-
 static inline enum chg_type usb_get_chg_type(struct usb_info *ui)
 {
-	unsigned long usb_portsc_v = 0;
-	usb_portsc_v = readl(USB_PORTSC);
-//	printk(KERN_ERR "usb_portsc 0x%x",usb_portsc_v);
-	if (USB_CHARGER_MASK & usb_portsc_v)
-	{
-		update_usb_to_gui(2);
-		return USB_CHG_TYPE__SDP;
-	}
-	else if (WALL_CHARGER_MASK & usb_portsc_v)
-	{
-		update_usb_to_gui(3);
-		return USB_CHG_TYPE__WALLCHARGER;
-	}
-	else if (USB_WALL_CHARGER_MASK & usb_portsc_v)
-	{
-		update_usb_to_gui(3);
-		return USB_CHG_TYPE__WALLCHARGER;
-	}
-
 	if ((readl(USB_PORTSC) & PORTSC_LS) == PORTSC_LS)
 	{
 		update_usb_to_gui(3);
@@ -593,7 +569,7 @@ static void usb_ept_enable(struct msm_endpoint *ept, int yes,
 	/* complete all the updates to ept->head before enabling endpoint*/
 	mb();
 	writel(n, USB_ENDPTCTRL(ept->num));
-	
+
 	/* Ensure endpoint is enabled before returning */
 	dsb();
 
@@ -644,7 +620,7 @@ reprime_ept:
 	 * is set. To workaround the issue, use dTD INFO bit
 	 * to make decision on re-prime or not.
 	 */
-	writel(n, USB_ENDPTPRIME);
+	writel_relaxed(n, USB_ENDPTPRIME);
 	/* busy wait till endptprime gets clear */
 	while ((readl_relaxed(USB_ENDPTPRIME) & n))
 		;
@@ -1212,7 +1188,7 @@ static void flush_endpoint_sw(struct msm_endpoint *ept)
 		req->live = 0;
 		req->req.status = -ESHUTDOWN;
 		req->req.actual = 0;
-		
+
 		/* Gadget driver may free the request in completion
 		 * handler. So keep a copy of next req pointer
 		 * before calling completion handler.
