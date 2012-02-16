@@ -145,7 +145,7 @@ static void usb_do_remote_wakeup(struct work_struct *w);
 
 #define USB_CHG_DET_DELAY	msecs_to_jiffies(1000)
 #define REMOTE_WAKEUP_DELAY	msecs_to_jiffies(1000)
-#define PHY_STATUS_CHECK_DELAY	(jiffies + msecs_to_jiffies(1000))
+#define PHY_STATUS_CHECK_DELAY (jiffies + msecs_to_jiffies(1000))
 
 struct usb_info {
 	/* lock for register/queue/device state changes */
@@ -1527,7 +1527,7 @@ static void usb_do_work(struct work_struct *w)
 				dev_dbg(&ui->pdev->dev,
 					"msm72k_udc: ONLINE -> OFFLINE\n");
 
-				update_usb_to_gui(0);
+				update_usb_to_gui(0);	// CHARGER_TYPE_NONE
 
 				atomic_set(&ui->running, 0);
 				atomic_set(&ui->remote_wakeup, 0);

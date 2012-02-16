@@ -128,6 +128,9 @@ static struct platform_device mass_storage_device = {
 
 #ifdef CONFIG_USB_ANDROID
 static char *usb_functions_default[] = {
+#ifdef CONFIG_USB_ANDROID_DIAG
+	"diag",
+#endif
 #ifdef CONFIG_USB_ANDROID_RMNET
 	"rmnet",
 #endif
@@ -139,6 +142,9 @@ static char *usb_functions_default[] = {
 };
 
 static char *usb_functions_default_adb[] = {
+#ifdef CONFIG_USB_ANDROID_DIAG
+	"diag",
+#endif
 	"usb_mass_storage",
 	"adb",
 #ifdef CONFIG_USB_ANDROID_RMNET
@@ -166,6 +172,9 @@ static char *usb_functions_rndis_adb[] = {
 static char *usb_functions_all[] = {
 #ifdef CONFIG_USB_ANDROID_RNDIS
 	"rndis",
+#endif
+#ifdef CONFIG_USB_ANDROID_DIAG
+	"diag",
 #endif
 	"usb_mass_storage",
 	"adb",
@@ -209,6 +218,7 @@ static struct usb_mass_storage_platform_data mass_storage_pdata = {
 	.vendor		= "Qualcomm Incorporated",
 	.product    = "Mass storage",
 	.release	= 0x0100,
+	.can_stall	= 1,
 };
 
 static struct platform_device usb_mass_storage_device = {

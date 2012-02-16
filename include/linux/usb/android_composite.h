@@ -27,7 +27,12 @@ struct android_usb_function {
 };
 
 struct android_usb_product {
-	/* Default product ID. */
+	/* Vendor ID for this set of functions.
+	 * Default vendor_id in platform data will be used if this is zero.
+	 */
+	__u16 vendor_id;
+
+	/* Product ID for this set of functions. */
 	__u16 product_id;
 
 	/* List of function names associated with this product.
@@ -68,7 +73,6 @@ struct android_usb_platform_data {
 	 */
 	int num_functions;
 	char **functions;
-	int enable_rndis_msc;
 };
 
 /* Platform data for "usb_mass_storage" driver. */
@@ -78,6 +82,7 @@ struct usb_mass_storage_platform_data {
 	char *product;
 	int release;
 
+	char can_stall;
 	/* number of LUNS */
 	int nluns;
 };
@@ -91,7 +96,7 @@ struct usb_ether_platform_data {
 
 extern void android_register_function(struct android_usb_function *f);
 
-extern void android_enable_function(struct usb_function *f, int enable);
+extern int android_enable_function(struct usb_function *f, int enable);
 
 
 #endif	/* __LINUX_USB_ANDROID_H */

@@ -82,9 +82,6 @@ struct gether {
 /* netdev setup/teardown as directed by the gadget driver */
 int gether_setup(struct usb_gadget *g, u8 ethaddr[ETH_ALEN]);
 void gether_cleanup(void);
-/* variant of gether_setup that allows customizing network device name */
-int gether_setup_name(struct usb_gadget *g, u8 ethaddr[ETH_ALEN],
-		const char *netname);
 
 /* connect/disconnect is handled by individual functions */
 struct net_device *gether_connect(struct gether *);
@@ -94,13 +91,6 @@ void gether_disconnect(struct gether *);
 static inline bool can_support_ecm(struct usb_gadget *gadget)
 {
 	if (!gadget_supports_altsettings(gadget))
-		return false;
-
-	/* SA1100 can do ECM, *without* status endpoint ... but we'll
-	 * only use it in non-ECM mode for backwards compatibility
-	 * (and since we currently require a status endpoint)
-	 */
-	if (gadget_is_sa1100(gadget))
 		return false;
 
 	/* Everything else is *presumably* fine ... but this is a bit
@@ -115,7 +105,7 @@ int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
 int ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
 int eem_bind_config(struct usb_configuration *c);
 
-#if defined(CONFIG_USB_ETH_RNDIS) || defined(CONFIG_USB_ANDROID_RNDIS)
+#if defined(USB_ETH_RNDIS) || defined(CONFIG_USB_ANDROID_RNDIS)
 
 int rndis_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
 
