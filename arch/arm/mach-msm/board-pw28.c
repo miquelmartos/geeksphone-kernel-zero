@@ -128,26 +128,32 @@ static struct platform_device mass_storage_device = {
 
 #ifdef CONFIG_USB_ANDROID
 static char *usb_functions_default[] = {
-#ifdef CONFIG_USB_ANDROID_RMNET
-	"rmnet",
+#ifdef CONFIG_USB_ANDROID_DIAG
+	"diag",
 #endif
-	"usb_mass_storage",
 #ifdef CONFIG_USB_F_SERIAL
 	"modem",
 	"nmea",
 #endif
+#ifdef CONFIG_USB_ANDROID_RMNET
+	"rmnet",
+#endif
+	"usb_mass_storage",
 };
 
 static char *usb_functions_default_adb[] = {
-	"usb_mass_storage",
-	"adb",
-#ifdef CONFIG_USB_ANDROID_RMNET
-	"rmnet",
+#ifdef CONFIG_USB_ANDROID_DIAG
+	"diag",
 #endif
+	"adb",
 #ifdef CONFIG_USB_F_SERIAL
 	"modem",
 	"nmea",
 #endif
+#ifdef CONFIG_USB_ANDROID_RMNET
+	"rmnet",
+#endif
+	"usb_mass_storage",
 };
 
 static char *usb_functions_rndis[] = {
@@ -167,7 +173,9 @@ static char *usb_functions_all[] = {
 #ifdef CONFIG_USB_ANDROID_RNDIS
 	"rndis",
 #endif
-	"usb_mass_storage",
+#ifdef CONFIG_USB_ANDROID_DIAG
+	"diag",
+#endif
 	"adb",
 #ifdef CONFIG_USB_F_SERIAL
 	"modem",
@@ -176,6 +184,7 @@ static char *usb_functions_all[] = {
 #ifdef CONFIG_USB_ANDROID_RMNET
 	"rmnet",
 #endif
+	"usb_mass_storage",
 #ifdef CONFIG_USB_ANDROID_ACM
 	"acm",
 #endif
