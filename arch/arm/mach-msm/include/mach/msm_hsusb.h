@@ -124,6 +124,7 @@ struct msm_hsusb_gadget_platform_data {
 	int *phy_init_seq;
 	void (*phy_reset)(void);
 
+	u32 swfi_latency;
 	int self_powered;
 	int is_phy_status_timer_on;
 };
@@ -175,9 +176,9 @@ struct msm_otg_platform_data {
 	int (*ldo_enable) (int enable);
 	int (*ldo_set_voltage) (int mV);
 
-	u32 			swfi_latency;
 	/* pmic notfications apis */
-	int (*pmic_notif_init) (void (*callback)(int online), int init);
+	int (*pmic_notif_init) (void);
+	void (*pmic_notif_deinit) (void);
 	int (*pmic_register_vbus_sn) (void (*callback)(int online));
 	void (*pmic_unregister_vbus_sn) (void (*callback)(int online));
 	int (*pmic_enable_ldo) (int);

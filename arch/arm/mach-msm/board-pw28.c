@@ -128,9 +128,6 @@ static struct platform_device mass_storage_device = {
 
 #ifdef CONFIG_USB_ANDROID
 static char *usb_functions_default[] = {
-#ifdef CONFIG_USB_ANDROID_DIAG
-	"diag",
-#endif
 #ifdef CONFIG_USB_ANDROID_RMNET
 	"rmnet",
 #endif
@@ -142,9 +139,6 @@ static char *usb_functions_default[] = {
 };
 
 static char *usb_functions_default_adb[] = {
-#ifdef CONFIG_USB_ANDROID_DIAG
-	"diag",
-#endif
 	"usb_mass_storage",
 	"adb",
 #ifdef CONFIG_USB_ANDROID_RMNET
@@ -172,9 +166,6 @@ static char *usb_functions_rndis_adb[] = {
 static char *usb_functions_all[] = {
 #ifdef CONFIG_USB_ANDROID_RNDIS
 	"rndis",
-#endif
-#ifdef CONFIG_USB_ANDROID_DIAG
-	"diag",
 #endif
 	"usb_mass_storage",
 	"adb",
@@ -218,7 +209,6 @@ static struct usb_mass_storage_platform_data mass_storage_pdata = {
 	.vendor		= "Qualcomm Incorporated",
 	.product    = "Mass storage",
 	.release	= 0x0100,
-	.can_stall	= 1,
 };
 
 static struct platform_device usb_mass_storage_device = {
@@ -410,53 +400,14 @@ static int hsusb_rpc_connect(int connect)
 #endif
 
 #ifdef CONFIG_USB_MSM_OTG_72K
-struct vreg *vreg_3p3;
-static int msm_hsusb_ldo_init(int init)
-{
-	if (init) {
-		/*
-		 * PHY 3.3V analog domain(VDDA33) is powered up by
-		 * an always enabled power supply (LP5900TL-3.3).
-		 * USB VREG default source is VBUS line. Turning
-		 * on USB VREG has a side effect on the USB suspend
-		 * current. Hence USB VREG is explicitly turned
-		 * off here.
-		 */
-		vreg_3p3 = vreg_get(NULL, "usb");
-		if (IS_ERR(vreg_3p3))
-			return PTR_ERR(vreg_3p3);
-		vreg_enable(vreg_3p3);
-		vreg_disable(vreg_3p3);
-		vreg_put(vreg_3p3);
-	}
-
-	return 0;
-}
-
-static int msm_hsusb_pmic_notif_init(void (*callback)(int online), int init)
-{
-	int ret;
-
-	if (init) {
-		ret = msm_pm_app_rpc_init(callback);
-	} else {
-		msm_pm_app_rpc_deinit(callback);
-		ret = 0;
-	}
-	return ret;
-}
-
 static struct msm_otg_platform_data msm_otg_pdata = {
-	.rpc_connect             = hsusb_rpc_connect,
-	.pmic_notif_init         = msm_hsusb_pmic_notif_init,
-	.chg_vbus_draw           = hsusb_chg_vbus_draw,
-	.chg_connected           = hsusb_chg_connected,
-	.chg_init                = hsusb_chg_init,
-#ifdef CONFIG_USB_EHCI_MSM
-	.vbus_power = msm_hsusb_vbus_power,
-#endif
-	.ldo_init		= msm_hsusb_ldo_init,
-	.pclk_required_during_lpm = 1
+	.rpc_connect	= hsusb_rpc_connect,
+	.pmic_notif_init         = msm_pm_app_rpc_init,
+	.pmic_notif_deinit       = msm_pm_app_rpc_deinit,
+	.pmic_register_vbus_sn   = msm_pm_app_register_vbus_sn,
+	.pmic_unregister_vbus_sn = msm_pm_app_unregister_vbus_sn,
+	.pmic_enable_ldo         = msm_pm_app_enable_usb_ldo,
+	.pclk_required_during_lpm = 1,
 };
 
 #ifdef CONFIG_USB_GADGET
@@ -2118,7 +2069,7 @@ static void __init msm7x2x_init(void)
 	msm_otg_pdata.phy_reset_sig_inverted = 1;
 
 #ifdef CONFIG_USB_GADGET
-	msm_otg_pdata.swfi_latency =
+	msm_gadget_pdata.swfi_latency =
 		msm7x27_pm_data
 		[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].latency;
 	msm_device_gadget_peripheral.dev.platform_data = &msm_gadget_pdata;

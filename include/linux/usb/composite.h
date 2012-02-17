@@ -132,7 +132,6 @@ struct usb_function {
 	/* private: */
 	/* internals */
 	struct list_head		list;
-	DECLARE_BITMAP(endpoints, 32);
 	struct device			*dev;
 };
 
@@ -292,8 +291,7 @@ struct usb_composite_driver {
 	void			(*suspend)(struct usb_composite_dev *);
 	void			(*resume)(struct usb_composite_dev *);
 
-	int			(*enable_function)(struct usb_function *f,
-							 int enable);
+	void			(*enable_function)(struct usb_function *f, int enable);
 };
 
 extern int usb_composite_register(struct usb_composite_driver *);
@@ -341,7 +339,6 @@ struct usb_composite_dev {
 
 	/* private: */
 	/* internals */
-	unsigned int			suspended:1;
 	struct usb_device_descriptor	desc;
 	struct list_head		configs;
 	struct usb_composite_driver	*driver;
