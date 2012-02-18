@@ -376,28 +376,6 @@ static struct msm_hsusb_platform_data msm_hsusb_pdata = {
 };
 #endif
 
-#ifdef CONFIG_USB_EHCI_MSM
-static void msm_hsusb_vbus_power(unsigned phy_info, int on)
-{
-	if (on)
-		msm_hsusb_vbus_powerup();
-	else
-		msm_hsusb_vbus_shutdown();
-}
-
-static struct msm_usb_host_platform_data msm_usb_host_pdata = {
-	.phy_info       = (USB_PHY_INTEGRATED | USB_PHY_MODEL_65NM),
-};
-
-static void __init msm7x2x_init_host(void)
-{
-	if (machine_is_msm7x25_ffa() || machine_is_msm7x27_ffa())
-		return;
-
-	msm_add_host(0, &msm_usb_host_pdata);
-}
-#endif
-
 #ifdef CONFIG_USB_MSM_OTG_72K
 static int hsusb_rpc_connect(int connect)
 {
@@ -1588,6 +1566,28 @@ static struct msm_acpu_clock_platform_data msm7x2x_clock_data = {
 
 void msm_serial_debug_init(unsigned int base, int irq,
 			   struct device *clk_device, int signal_irq);
+
+#ifdef CONFIG_USB_EHCI_MSM
+static void msm_hsusb_vbus_power(unsigned phy_info, int on)
+{
+	if (on)
+		msm_hsusb_vbus_powerup();
+	else
+		msm_hsusb_vbus_shutdown();
+}
+
+static struct msm_usb_host_platform_data msm_usb_host_pdata = {
+	.phy_info       = (USB_PHY_INTEGRATED | USB_PHY_MODEL_65NM),
+	.vbus_power = msm_hsusb_vbus_power,
+};
+static void __init msm7x2x_init_host(void)
+{
+	if (machine_is_msm7x25_ffa() || machine_is_msm7x27_ffa())
+		return;
+
+	msm_add_host(0, &msm_usb_host_pdata);
+}
+#endif
 
 #if (defined(CONFIG_MMC_MSM_SDC1_SUPPORT)\
 	|| defined(CONFIG_MMC_MSM_SDC2_SUPPORT)\
