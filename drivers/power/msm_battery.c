@@ -824,6 +824,20 @@ void update_usb_to_gui(int i)
 	pr_info("%s ---\n", __func__);
 }
 EXPORT_SYMBOL(update_usb_to_gui);
+
+void update_chg_to_gui(int i)
+{
+	struct	power_supply *supp;
+
+	msm_batt_info.charger_type = i;
+
+	supp = &msm_psy_ac;
+	msm_batt_info.current_chg_source = i;			
+	msm_batt_info.batt_status = i;
+	msm_batt_info.current_ps = supp;
+	power_supply_changed(supp);
+}
+EXPORT_SYMBOL(update_chg_to_gui);
 #endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND

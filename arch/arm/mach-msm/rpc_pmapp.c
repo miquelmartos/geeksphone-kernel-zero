@@ -231,49 +231,6 @@ static int pm_app_usb_cb_func(struct msm_rpc_client *client,
 	return rc;
 }
 
-/*int msm_pm_app_rpc_init(void)
-{
-
-	if (!machine_is_qsd8x50_ffa() && !machine_is_qsd8x50a_ffa()
-			&& !machine_is_msm7x27_ffa())
-		return -ENOTSUPP;
-
-	boost_vreg = vreg_get(NULL, "boost");
-	if (IS_ERR(boost_vreg)) {
-		pr_err("%s: boost vreg get failed\n", __func__);
-		return PTR_ERR(boost_vreg);
-	}
-
-	usb_vreg = vreg_get(NULL, "usb");
-	if (IS_ERR(usb_vreg)) {
-		pr_err("%s: usb vreg get failed\n", __func__);
-		vreg_put(usb_vreg);
-		return PTR_ERR(usb_vreg);
-	}
-
-	client = msm_rpc_register_client("pmapp_usb",
-			PMAPP_RPC_PROG,
-			PMAPP_RPC_VER_1_2, 1,
-			pm_app_usb_cb_func);
-	if (!IS_ERR(client)) {
-		rpc_pmapp_init_rpc_ids(PMAPP_RPC_VER_1_2);
-		goto done;
-	}
-
-	client = msm_rpc_register_client("pmapp_usb",
-			PMAPP_RPC_PROG,
-			PMAPP_RPC_VER_1_1, 1,
-			pm_app_usb_cb_func);
-	if (!IS_ERR(client))
-		rpc_pmapp_init_rpc_ids(PMAPP_RPC_VER_1_1);
-	else
-		return PTR_ERR(client);
-
-done:
-	return 0;
-}
-EXPORT_SYMBOL(msm_pm_app_rpc_init);*/
-
 int msm_pm_app_rpc_init(void)
 {
 

@@ -141,7 +141,9 @@ static void usb_do_remote_wakeup(struct work_struct *w);
 
 #define USB_CHG_DET_DELAY	msecs_to_jiffies(1000)
 #define REMOTE_WAKEUP_DELAY	msecs_to_jiffies(1000)
+
 extern void update_usb_to_gui(int i);
+
 struct usb_info {
 	/* lock for register/queue/device state changes */
 	spinlock_t lock;
@@ -253,32 +255,13 @@ static ssize_t print_switch_state(struct switch_dev *sdev, char *buf)
 	return sprintf(buf, "%s\n",
 			(atomic_read(&ui->configured) ? "online" : "offline"));
 }
+
 #define USB_CHARGER_MASK 0x0200
 #define WALL_CHARGER_MASK 0x0800
 #define USB_WALL_CHARGER_MASK 0x0c00
+
 static inline enum chg_type usb_get_chg_type(struct usb_info *ui)
 {
-#if 0
-	unsigned long usb_portsc_v = 0;
-	usb_portsc_v = readl(USB_PORTSC);
-	printk(KERN_ERR "usb_portsc 0x%x",usb_portsc_v);
-	if(USB_CHARGER_MASK & usb_portsc_v)
-	{
-		update_usb_to_gui(2);
-		return USB_CHG_TYPE__SDP;
-	}
-	else if(WALL_CHARGER_MASK & usb_portsc_v)
-	{
-		update_usb_to_gui(3);
-		return USB_CHG_TYPE__WALLCHARGER;
-	}
-	else if(USB_WALL_CHARGER_MASK & usb_portsc_v)
-	{
-		update_usb_to_gui(3);
-		return USB_CHG_TYPE__WALLCHARGER;
-	}
-
-#endif
 	if ((readl(USB_PORTSC) & PORTSC_LS) == PORTSC_LS)
 	{
 		update_usb_to_gui(3);
@@ -338,6 +321,8 @@ static void usb_chg_stop(struct work_struct *w)
 		hsusb_chg_vbus_draw(0);
 }
 
+extern int get_charging_state(void);
+
 static void usb_chg_detect(struct work_struct *w)
 {
 	struct usb_info *ui = container_of(w, struct usb_info, chg_det.work);
@@ -368,7 +353,6 @@ static void usb_chg_detect(struct work_struct *w)
 	 * release the wakelock and set driver latency to default sothat,
 	 * driver will reacquire wakelocks for any sub-sequent usb interrupts.
 	 * */
-extern int get_charging_state(void);
 	if (temp == USB_CHG_TYPE__WALLCHARGER) {
 		/* Workaround: Reset PHY in SE1 state */
 		otg->reset(ui->xceiv);
