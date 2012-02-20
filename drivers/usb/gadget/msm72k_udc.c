@@ -274,7 +274,7 @@ static inline enum chg_type usb_get_chg_type(struct usb_info *ui)
 	}
 }
 
-#define USB_WALLCHARGER_CHG_CURRENT_1000MA 1000
+#define USB_WALLCHARGER_CHG_CURRENT_1800MA 1800
 #define USB_WALLCHARGER_CHG_CURRENT_700MA 700
 
 static int usb_get_max_power(struct usb_info *ui)
@@ -296,7 +296,7 @@ static int usb_get_max_power(struct usb_info *ui)
 		return -ENODEV;
 
 	if (temp == USB_CHG_TYPE__WALLCHARGER)
-	return USB_WALLCHARGER_CHG_CURRENT_1000MA;
+	return USB_WALLCHARGER_CHG_CURRENT_1800MA;
 
 	if (temp == USB_CHG_TYPE__WALLCHARGER)
 	return USB_WALLCHARGER_CHG_CURRENT_700MA;
