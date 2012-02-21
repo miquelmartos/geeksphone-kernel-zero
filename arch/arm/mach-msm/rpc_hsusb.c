@@ -90,7 +90,9 @@ static int msm_hsusb_init_rpc_ids(unsigned long vers)
 static int msm_chg_init_rpc(unsigned long vers)
 {
 	if (((vers & RPC_VERSION_MAJOR_MASK) == 0x00010000) ||
-	    ((vers & RPC_VERSION_MAJOR_MASK) == 0x00020000)) {
+	    ((vers & RPC_VERSION_MAJOR_MASK) == 0x00020000) ||
+	    ((vers & RPC_VERSION_MAJOR_MASK) == 0x00030000) ||
+	    ((vers & RPC_VERSION_MAJOR_MASK) == 0x00040000)) {
 		chg_ep = msm_rpc_connect_compatible(MSM_RPC_CHG_PROG, vers,
 						     MSM_RPC_UNINTERRUPTIBLE);
 		if (IS_ERR(chg_ep))
@@ -166,6 +168,14 @@ int msm_chg_rpc_connect(void)
 		pr_debug("%s: chg_ep already connected\n", __func__);
 		return 0;
 	}
+
+	chg_vers = 0x00040001;
+	if (!msm_chg_init_rpc(chg_vers))
+		goto chg_found;
+
+	chg_vers = 0x00030001;
+	if (!msm_chg_init_rpc(chg_vers))
+		goto chg_found;
 
 	chg_vers = 0x00020001;
 	if (!msm_chg_init_rpc(chg_vers))
@@ -480,7 +490,7 @@ int msm_chg_rpc_close(void)
 {
 	int rc = 0;
 
-	if (!chg_ep || IS_ERR(chg_ep)) {
+	if (IS_ERR(chg_ep)) {
 		pr_err("%s: rpc_close failed before call, rc = %ld\n",
 			__func__, PTR_ERR(chg_ep));
 		return -EAGAIN;
@@ -574,10 +584,11 @@ int msm_hsusb_disable_pmic_ulpidata0(void)
 }
 EXPORT_SYMBOL(msm_hsusb_disable_pmic_ulpidata0);
 
+#ifdef CONFIG_USB_GADGET_MSM_72K
 /* charger api wrappers */
-int hsusb_chg_init(int init)
+int hsusb_chg_init(int connect)
 {
-	if (init)
+	if (connect)
 		return msm_chg_rpc_connect();
 	else
 		return msm_chg_rpc_close();
@@ -587,6 +598,7 @@ EXPORT_SYMBOL(hsusb_chg_init);
 void hsusb_chg_vbus_draw(unsigned mA)
 {
 	msm_chg_usb_i_is_available(mA);
+	printk(KERN_ERR "modify charger corrent %d to arm9",mA);
 }
 EXPORT_SYMBOL(hsusb_chg_vbus_draw);
 
@@ -608,3 +620,4 @@ void hsusb_chg_connected(enum chg_type chgtype)
 	msm_chg_usb_charger_connected(chgtype);
 }
 EXPORT_SYMBOL(hsusb_chg_connected);
+#endif

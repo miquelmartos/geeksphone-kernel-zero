@@ -142,8 +142,6 @@ static void usb_do_remote_wakeup(struct work_struct *w);
 #define USB_CHG_DET_DELAY	msecs_to_jiffies(1000)
 #define REMOTE_WAKEUP_DELAY	msecs_to_jiffies(1000)
 
-extern void update_usb_to_gui(int i);
-
 struct usb_info {
 	/* lock for register/queue/device state changes */
 	spinlock_t lock;
@@ -221,7 +219,6 @@ static int msm72k_set_halt(struct usb_ep *_ep, int value);
 static void flush_endpoint(struct msm_endpoint *ept);
 static void msm72k_pm_qos_update(int);
 
-
 static void msm_hsusb_set_state(enum usb_device_state state)
 {
 	unsigned long flags;
@@ -250,15 +247,10 @@ static ssize_t print_switch_name(struct switch_dev *sdev, char *buf)
 
 static ssize_t print_switch_state(struct switch_dev *sdev, char *buf)
 {
-	struct usb_info *ui = the_usb_info;
-
-	return sprintf(buf, "%s\n",
-			(atomic_read(&ui->configured) ? "online" : "offline"));
+	return sprintf(buf, "%s\n", sdev->state ? "online" : "offline");
 }
 
-#define USB_CHARGER_MASK 0x0200
-#define WALL_CHARGER_MASK 0x0800
-#define USB_WALL_CHARGER_MASK 0x0c00
+extern void update_usb_to_gui(int i);
 
 static inline enum chg_type usb_get_chg_type(struct usb_info *ui)
 {
@@ -274,7 +266,7 @@ static inline enum chg_type usb_get_chg_type(struct usb_info *ui)
 	}
 }
 
-#define USB_WALLCHARGER_CHG_CURRENT_1800MA 1800
+#define USB_WALLCHARGER_CHG_CURRENT_1000MA 1000
 #define USB_WALLCHARGER_CHG_CURRENT_700MA 700
 
 static int usb_get_max_power(struct usb_info *ui)
@@ -295,11 +287,11 @@ static int usb_get_max_power(struct usb_info *ui)
 	if (temp == USB_CHG_TYPE__INVALID)
 		return -ENODEV;
 
-	if (temp == USB_CHG_TYPE__WALLCHARGER)
-	return USB_WALLCHARGER_CHG_CURRENT_1800MA;
+    if (temp == USB_CHG_TYPE__WALLCHARGER)
+        return USB_WALLCHARGER_CHG_CURRENT_1000MA;
 
 	if (temp == USB_CHG_TYPE__WALLCHARGER)
-	return USB_WALLCHARGER_CHG_CURRENT_700MA;
+		return USB_WALLCHARGER_CHG_CURRENT_700MA;
 
 	if (suspended || !configured)
 		return 0;
@@ -1784,7 +1776,6 @@ static int msm72k_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	if (!req->busy) {
 		dev_dbg(&ui->pdev->dev, "%s: !req->busy\n", __func__);
 		spin_unlock_irqrestore(&ui->lock, flags);
-		BUG_ON(!req->busy);
 		return -EINVAL;
 	}
 	/* Stop the transfer */
@@ -1818,6 +1809,13 @@ static int msm72k_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 		(ep->flags & EPT_FLAG_IN) ?
 		DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
+	if (req->req.complete) {
+		req->req.status = -ECONNRESET;
+		spin_unlock_irqrestore(&ui->lock, flags);
+		req->req.complete(&ep->ep, &req->req);
+		spin_lock_irqsave(&ui->lock, flags);
+	}
+
 	if (!req->live) {
 		/* Reprime the endpoint for the remaining transfers */
 		for (temp_req = ep->req ; temp_req ; temp_req = temp_req->next)
@@ -1828,7 +1826,7 @@ static int msm72k_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 		return 0;
 	}
 	spin_unlock_irqrestore(&ui->lock, flags);
-	return -EINVAL;
+	return 0;
 }
 
 static int
