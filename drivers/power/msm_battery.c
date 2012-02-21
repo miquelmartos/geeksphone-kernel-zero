@@ -491,7 +491,7 @@ static int msm_batt_get_batt_chg_status(void)
 	return 0;
 }
 
-static void msm_batt_update_psy_status(void)
+static void real_msm_batt_update_psy_status(void)
 {
 	static u32 unnecessary_event_count;
 	u32	charger_status;
@@ -617,6 +617,9 @@ static void msm_batt_update_psy_status(void)
 				POWER_SUPPLY_STATUS_CHARGING;
 		}
 	}
+	
+	rep_batt_chg.v1.battery_voltage = msm_batt_get_vbatt_voltage();
+	battery_voltage = rep_batt_chg.v1.battery_voltage;
 
 	/* Correct battery voltage and status */
 	if (!battery_voltage) {
@@ -709,7 +712,8 @@ static void msm_batt_update_psy_status(void)
 	}
 
 #ifdef CONFIG_BOARD_PW28
-	if (battery_level == BATTERY_LEVEL_FULL) {
+	if (rep_batt_chg.v1.battery_level == BATTERY_LEVEL_FULL ||
+		battery_level == BATTERY_LEVEL_FULL) {
 		msm_batt_info.batt_status = POWER_SUPPLY_STATUS_FULL;
 		msm_batt_info.batt_capacity = 100;
 		{
@@ -788,6 +792,12 @@ void update_usb_to_gui(int i)
 }
 EXPORT_SYMBOL(update_usb_to_gui);
 #endif
+
+static void msm_batt_update_psy_status(void)
+{
+	rep_batt_chg.v1.battery_voltage = msm_batt_get_vbatt_voltage();
+	real_msm_batt_update_psy_status();
+}
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 struct batt_modify_client_req {
