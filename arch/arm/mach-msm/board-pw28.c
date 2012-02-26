@@ -95,19 +95,6 @@
 #define PID         0x9018
 #define ADBFN       0x1A
 
-static struct resource smc91x_resources[] = {
-	[0] = {
-		.start	= 0x9C004300,
-		.end	= 0x9C0043ff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= MSM_GPIO_TO_INT(132),
-		.end	= MSM_GPIO_TO_INT(132),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
 #ifdef CONFIG_USB_FUNCTION
 static struct usb_mass_storage_platform_data usb_mass_storage_pdata = {
 	.nluns          = 0x02,
@@ -281,13 +268,6 @@ static int __init board_serialno_setup(char *serialno)
 	return 1;
 }
 #endif
-
-static struct platform_device smc91x_device = {
-	.name		= "smc91x",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(smc91x_resources),
-	.resource	= smc91x_resources,
-};
 
 #ifdef CONFIG_USB_FUNCTION
 static struct usb_function_map usb_functions_map[] = {
@@ -1401,7 +1381,7 @@ typedef struct
 } BattFuelCapacity;
 
 static const BattFuelCapacity fuelCapacity[] = {
-   {3250, 0},                      /*   0% */
+   {3388, 0},                      /*   0% */
    {3500, 10},                     /*  10%,3580 is 15% when 3660 is 20 */
    {3660, 20},                     /*  20% */
    {3710, 30},                     /*  30% */
@@ -1411,7 +1391,7 @@ static const BattFuelCapacity fuelCapacity[] = {
    {3909, 70},                     /*  70% */
    {3977, 80},                     /*  80% */
    {4066, 90},                     /*  90% */
-   {4150, 100}                     /* 100% */
+   {4200, 100}                     /* 100% */
 };
 
 static struct msm_psy_batt_pdata msm_psy_batt_data = {
@@ -1515,7 +1495,6 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&msm_device_i2c,
 	&msm_device_gpio_i2c,
-	&smc91x_device,
 	&msm_device_tssc,
 	&android_pmem_kernel_ebi1_device,
 	&android_pmem_device,
@@ -2051,24 +2030,6 @@ static void __init msm7x2x_init(void)
 		printk ("%s-%d,wlan gpio ctrl request err\n", __FILE__, __LINE__);
 	gpio_direction_output(94,0);
 	gpio_direction_output(20,0);
-
-#if defined(CONFIG_SMC91X)
-	if (machine_is_msm7x25_ffa() || machine_is_msm7x27_ffa()) {
-		smc91x_resources[0].start = 0x98000300;
-		smc91x_resources[0].end = 0x980003ff;
-		smc91x_resources[1].start = MSM_GPIO_TO_INT(85);
-		smc91x_resources[1].end = MSM_GPIO_TO_INT(85);
-		if (gpio_tlmm_config(GPIO_CFG(85, 0,
-					      GPIO_CFG_INPUT,
-					      GPIO_CFG_PULL_DOWN,
-					      GPIO_CFG_2MA),
-				     GPIO_CFG_ENABLE)) {
-			printk(KERN_ERR
-			       "%s: Err: Config GPIO-85 INT\n",
-				__func__);
-		}
-	}
-#endif
 
 	if (cpu_is_msm7x27())
 		msm7x2x_clock_data.max_axi_khz = 200000;
