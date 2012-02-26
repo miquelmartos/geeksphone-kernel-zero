@@ -313,8 +313,6 @@ static void usb_chg_stop(struct work_struct *w)
 		hsusb_chg_vbus_draw(0);
 }
 
-extern int get_charging_state(void);
-
 static void usb_chg_detect(struct work_struct *w)
 {
 	struct usb_info *ui = container_of(w, struct usb_info, chg_det.work);
@@ -356,6 +354,8 @@ static void usb_chg_detect(struct work_struct *w)
 		wake_unlock(&ui->wlock);
 	}
 }
+
+extern int get_charging_state(void);
 
 static int usb_ep_get_stall(struct msm_endpoint *ept)
 {
