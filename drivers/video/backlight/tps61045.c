@@ -52,7 +52,7 @@ static void Tpsc(TpsPumpRes_t * pstRes, u32 n, bool Dir)
 	udelay(1000);
 }
 
-static uint Tps61045Lv(uint Lv)
+uint Tps61045Lv(uint Lv)
 {
 	uint Bank;
 
@@ -62,7 +62,7 @@ static uint Tps61045Lv(uint Lv)
 	return Bank;
 }
 
-static void Tps61045Set(TpsPumpRes_t * pstRes)
+void Tps61045Set(TpsPumpRes_t * pstRes)
 {
 	uint Delta;
 
@@ -80,13 +80,13 @@ static void Tps61045Set(TpsPumpRes_t * pstRes)
 	pstRes->CurLv = pstRes->DesLv;
 }
 
-static void Tps61045PowerOn(TpsPumpRes_t * pstRes)
+void Tps61045PowerOn(TpsPumpRes_t * pstRes)
 {
 	gpio_set_value(pstRes->Id, 1);
 	pstRes->CurLv = pstRes->DesLv = TPS_HW_MAX_LV;
 }
 
-static void Tps61045PowerOff(TpsPumpRes_t * pstRes)
+void Tps61045PowerOff(TpsPumpRes_t * pstRes)
 {
 	gpio_set_value(pstRes->Id, 0);
 	udelay(600);
