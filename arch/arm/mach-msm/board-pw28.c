@@ -1391,7 +1391,7 @@ static const BattFuelCapacity fuelCapacity[] = {
    {3909, 70},                     /*  70% */
    {3977, 80},                     /*  80% */
    {4066, 90},                     /*  90% */
-   {4200, 100}                     /* 100% */
+   {4150, 100}                     /* 100% */
 };
 
 static struct msm_psy_batt_pdata msm_psy_batt_data = {
@@ -1413,7 +1413,7 @@ static u32 msm_calculate_batt_capacity(u32 current_voltage)
     }
     else if (current_voltage >= fuelCapacity[step-1].voltage)
     {
-        return 100;
+        return 99;
     }
     else
     {    
