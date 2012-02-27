@@ -1973,7 +1973,7 @@ static void generate_serial_from_uuid(void)
 	/* Ugly hack: Rewrite the command line to include the
          * serial, since userspace wants it */
 	sprintf(boot_command_line,"%s androidboot.serialno=%s",saved_command_line,board_serial);
-	saved_command_line = kzalloc(strlen(boot_command_line)+1, GFP_KERNEL);
+	saved_command_line = alloc_bootmem(strlen (boot_command_line)+1);
 	strcpy(saved_command_line, boot_command_line);
 }
 
