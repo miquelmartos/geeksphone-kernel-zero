@@ -93,18 +93,18 @@
 
 
 #define HANDSET_MIC			0x01
-#define HANDSET_SPKR			0x02
+#define HANDSET_SPKR		0x02
 #define HEADSET_MIC			0x03
-#define HEADSET_SPKR_MONO		0x04
-#define HEADSET_SPKR_STEREO		0x05
-#define SPKR_PHONE_MIC			0x06
-#define SPKR_PHONE_MONO			0x07
-#define SPKR_PHONE_STEREO		0x08
+#define HEADSET_SPKR_MONO	0x04
+#define HEADSET_SPKR_STEREO	0x05
+#define SPKR_PHONE_MIC		0x06
+#define SPKR_PHONE_MONO		0x07
+#define SPKR_PHONE_STEREO	0x08
 #define BT_SCO_MIC			0x09
 #define BT_SCO_SPKR			0x0A
-#define BT_A2DP_SPKR			0x0B
-#define TTY_HEADSET_MIC			0x0C
-#define TTY_HEADSET_SPKR		0x0D
+#define BT_A2DP_SPKR		0x0B
+#define TTY_HEADSET_MIC		0x0C
+#define TTY_HEADSET_SPKR	0x0D
 
 /* Default devices are not supported in a */
 /* device switching context. Only supported */
@@ -126,12 +126,12 @@
 #define ADRC_ENABLE		0x0001
 #define EQ_ENABLE		0x0002
 #define IIR_ENABLE		0x0004
-#define QCONCERT_PLUS_ENABLE	0x0008
-#define MBADRC_ENABLE		0x0010
+#define QCONCERT_PLUS_ENABLE 0x0008
+#define MBADRC_ENABLE	0x0010
 
 #define AGC_ENABLE		0x0001
 #define NS_ENABLE		0x0002
-#define TX_IIR_ENABLE		0x0004
+#define TX_IIR_ENABLE	0x0004
 
 #define VOC_REC_UPLINK		0x00
 #define VOC_REC_DOWNLINK	0x01

@@ -388,9 +388,10 @@ static int page_referenced_one(struct page *page,
 out_unmap:
 	(*mapcount)--;
 	pte_unmap_unlock(pte, ptl);
-out:
+
 	if (referenced)
 		*vm_flags |= vma->vm_flags;
+out:
 	return referenced;
 }
 
@@ -1100,12 +1101,9 @@ static int try_to_unmap_file(struct page *page, enum ttu_flags flags)
 		if (ret == SWAP_MLOCK) {
 			mlocked = try_to_mlock_page(page, vma);
 			if (mlocked)
-				break;  /* stop if actually mlocked page */
+				goto out;  /* stop if actually mlocked page */
 		}
 	}
-
-	if (mlocked)
-		goto out;
 
 	if (list_empty(&mapping->i_mmap_nonlinear))
 		goto out;

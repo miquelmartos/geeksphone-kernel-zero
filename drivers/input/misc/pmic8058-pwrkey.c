@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -28,7 +28,6 @@
 #include <linux/spinlock.h>
 #include <linux/hrtimer.h>
 #include <linux/pm.h>
-#include <linux/slab.h>
 #include <linux/pm_runtime.h>
 
 #define PON_CNTL_1	0x1C
@@ -38,11 +37,9 @@
 struct pmic8058_pwrkey {
 	struct input_dev *pwr;
 	int key_press_irq;
-	int key_release_irq;
 	struct pm8058_chip	*pm_chip;
 	struct hrtimer timer;
 	bool key_pressed;
-	bool pressed_first;
 	struct pmic8058_pwrkey_pdata *pdata;
 	spinlock_t lock;
 };
@@ -69,34 +66,22 @@ static irqreturn_t pwrkey_press_irq(int irq, void *_pwrkey)
 	struct pmic8058_pwrkey_pdata *pdata = pwrkey->pdata;
 	unsigned long flags;
 
-	spin_lock_irqsave(&pwrkey->lock, flags);
-	if (pwrkey->pressed_first) {
-		/*
-		 * If pressed_first flag is set already then release interrupt
-		 * has occured first. Events are handled in the release IRQ so
-		 * return.
-		 */
-		pwrkey->pressed_first = false;
-		spin_unlock_irqrestore(&pwrkey->lock, flags);
-		return IRQ_HANDLED;
-	} else {
-		pwrkey->pressed_first = true;
-		/*no pwrkey time duration, means no end key simulation*/
-		if (!pwrkey->pdata->pwrkey_time_ms) {
-			input_report_key(pwrkey->pwr, KEY_POWER, 1);
-			input_sync(pwrkey->pwr);
-			spin_unlock_irqrestore(&pwrkey->lock, flags);
-			return IRQ_HANDLED;
-		}
-
-		input_report_key(pwrkey->pwr, KEY_END, 1);
+	/*no pwrkey time duration, means no end key simulation*/
+	if (!pwrkey->pdata->pwrkey_time_ms) {
+		input_report_key(pwrkey->pwr, KEY_POWER, 1);
 		input_sync(pwrkey->pwr);
-
-		hrtimer_start(&pwrkey->timer,
-				ktime_set(pdata->pwrkey_time_ms / 1000,
-				(pdata->pwrkey_time_ms % 1000) * 1000000),
-				HRTIMER_MODE_REL);
+		return IRQ_HANDLED;
 	}
+
+	spin_lock_irqsave(&pwrkey->lock, flags);
+
+	input_report_key(pwrkey->pwr, KEY_END, 1);
+	input_sync(pwrkey->pwr);
+
+	hrtimer_start(&pwrkey->timer,
+			ktime_set(pdata->pwrkey_time_ms / 1000,
+				(pdata->pwrkey_time_ms % 1000) * 1000000),
+			HRTIMER_MODE_REL);
 	spin_unlock_irqrestore(&pwrkey->lock, flags);
 
 	return IRQ_HANDLED;
@@ -107,47 +92,25 @@ static irqreturn_t pwrkey_release_irq(int irq, void *_pwrkey)
 	struct pmic8058_pwrkey *pwrkey = _pwrkey;
 	unsigned long flags;
 
+	/*no pwrkey time, means no delay in pwr key reporting*/
+	if (!pwrkey->pdata->pwrkey_time_ms) {
+		input_report_key(pwrkey->pwr, KEY_POWER, 0);
+		input_sync(pwrkey->pwr);
+		return IRQ_HANDLED;
+	}
+
 	spin_lock_irqsave(&pwrkey->lock, flags);
-	if (pwrkey->pressed_first) {
-		pwrkey->pressed_first = false;
-		/* no pwrkey time, means no delay in pwr key reporting */
-		if (!pwrkey->pdata->pwrkey_time_ms) {
-			input_report_key(pwrkey->pwr, KEY_POWER, 0);
-			input_sync(pwrkey->pwr);
-			spin_unlock_irqrestore(&pwrkey->lock, flags);
-			return IRQ_HANDLED;
-		}
+	hrtimer_cancel(&pwrkey->timer);
 
-		hrtimer_cancel(&pwrkey->timer);
-
-		if (pwrkey->key_pressed) {
-			pwrkey->key_pressed = false;
-			input_report_key(pwrkey->pwr, KEY_POWER, 0);
-			input_sync(pwrkey->pwr);
-		}
-
-		input_report_key(pwrkey->pwr, KEY_END, 0);
-		input_sync(pwrkey->pwr);
-	} else {
-		/*
-		 * Set this flag true so that in the subsequent interrupt of
-		 * press we can know release interrupt came first
-		 */
-		pwrkey->pressed_first = true;
-		/* no pwrkey time, means no delay in pwr key reporting */
-		if (!pwrkey->pdata->pwrkey_time_ms) {
-			input_report_key(pwrkey->pwr, KEY_POWER, 1);
-			input_sync(pwrkey->pwr);
-			input_report_key(pwrkey->pwr, KEY_POWER, 0);
-			input_sync(pwrkey->pwr);
-			spin_unlock_irqrestore(&pwrkey->lock, flags);
-			return IRQ_HANDLED;
-		}
-		input_report_key(pwrkey->pwr, KEY_END, 1);
-		input_sync(pwrkey->pwr);
-		input_report_key(pwrkey->pwr, KEY_END, 0);
+	if (pwrkey->key_pressed) {
+		pwrkey->key_pressed = false;
+		input_report_key(pwrkey->pwr, KEY_POWER, 0);
 		input_sync(pwrkey->pwr);
 	}
+
+	input_report_key(pwrkey->pwr, KEY_END, 0);
+	input_sync(pwrkey->pwr);
+
 	spin_unlock_irqrestore(&pwrkey->lock, flags);
 
 	return IRQ_HANDLED;
@@ -158,10 +121,8 @@ static int pmic8058_pwrkey_suspend(struct device *dev)
 {
 	struct pmic8058_pwrkey *pwrkey = dev_get_drvdata(dev);
 
-	if (device_may_wakeup(dev)) {
+	if (device_may_wakeup(dev))
 		enable_irq_wake(pwrkey->key_press_irq);
-		enable_irq_wake(pwrkey->key_release_irq);
-	}
 
 	return 0;
 }
@@ -170,10 +131,8 @@ static int pmic8058_pwrkey_resume(struct device *dev)
 {
 	struct pmic8058_pwrkey *pwrkey = dev_get_drvdata(dev);
 
-	if (device_may_wakeup(dev)) {
+	if (device_may_wakeup(dev))
 		disable_irq_wake(pwrkey->key_press_irq);
-		disable_irq_wake(pwrkey->key_release_irq);
-	}
 
 	return 0;
 }
@@ -224,7 +183,7 @@ static int __devinit pmic8058_pwrkey_probe(struct platform_device *pdev)
 
 	pwrkey->pm_chip = pm_chip;
 	pwrkey->pdata   = pdata;
-	pwrkey->pressed_first = false;
+
 	/* Enable runtime PM ops, start in ACTIVE mode */
 	err = pm_runtime_set_active(&pdev->dev);
 	if (err < 0)
@@ -276,26 +235,9 @@ static int __devinit pmic8058_pwrkey_probe(struct platform_device *pdev)
 	}
 
 	pwrkey->key_press_irq = key_press_irq;
-	pwrkey->key_release_irq = key_release_irq;
 	pwrkey->pwr = pwr;
 
 	platform_set_drvdata(pdev, pwrkey);
-
-	/* Check if power-key is pressed at boot up */
-	err = pm8058_irq_get_rt_status(pwrkey->pm_chip, key_press_irq);
-	if (err < 0) {
-		dev_err(&pdev->dev, "Key-press status at boot failed rc=%d\n",
-									err);
-		goto unreg_input_dev;
-	}
-	if (err) {
-		if (!pwrkey->pdata->pwrkey_time_ms)
-			input_report_key(pwrkey->pwr, KEY_POWER, 1);
-		else
-			input_report_key(pwrkey->pwr, KEY_END, 1);
-		input_sync(pwrkey->pwr);
-		pwrkey->pressed_first = true;
-	}
 
 	err = request_threaded_irq(key_press_irq, NULL, pwrkey_press_irq,
 			 IRQF_TRIGGER_RISING, "pmic8058_pwrkey_press", pwrkey);

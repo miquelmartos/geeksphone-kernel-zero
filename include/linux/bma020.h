@@ -119,16 +119,12 @@ union Data16bit{
     };
 };
 
-
-
-
 #define MOTION_GETXYZ8 	_IOW('V', 0x2, unsigned long)
 #define MOTION_DOCAL 	_IOW('V', 0x3, unsigned long)
 #define MOTION_GETXYZ 	_IOW('V', 0x4, unsigned long)
 #define MOTION_SETCAL 	_IOW('V', 0x5, unsigned long)
 #define MOTION_DOCAL_STEP1 	_IOW('V', 0x6, unsigned long)
 #define MOTION_DOCAL_STEP2 	_IOW('V', 0x7, unsigned long)
-
 
 #define MOTACC_PATH		"/etc/accel_caldata"
 #define ABS(a)                ((a) > 0 ? (a): -(a))

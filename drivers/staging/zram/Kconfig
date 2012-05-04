@@ -1,13 +1,6 @@
-config XVMALLOC
-	bool
-	default n
-
 config ZRAM
 	tristate "Compressed RAM block device support"
 	depends on BLOCK && SYSFS
-	select XVMALLOC
-	select LZO_COMPRESS
-	select LZO_DECOMPRESS
 	default n
 	help
 	  Creates virtual block devices called /dev/zramX (X = 0, 1, ...).
@@ -30,28 +23,38 @@ config ZRAM_NUM_DEVICES
 	  Select default number of zram devices. You can override this value
 	  using 'num_devices' module parameter.
 
-config ZRAM_DEBUG
-	bool "Compressed RAM block device debug support"
+config ZRAM_DEFAULT_PERCENTAGE
+	int "Default number of zram percentage"
 	depends on ZRAM
-	default n
+	range 10 80
+	default 25
 	help
-	  This option adds additional debugging code to the compressed
-	  RAM block device driver.
+	  Select default zram disk size: percentage of total RAM
 
-config ZCACHE
-	bool "Page cache compression support"
-	depends on CLEANCACHE
-	select XVMALLOC
+choice ZRAM_COMPRESS
+	prompt "compression method"
+	depends on ZRAM
+	default ZRAM_LZO
+	help
+	  Select the compression method used by zram.
+	  LZO is the default. Snappy compresses a bit worse (around ~2%) but
+	  much (~2x) faster, at least on x86-64.
+
+config ZRAM_LZO
+	bool "LZO compression"
 	select LZO_COMPRESS
 	select LZO_DECOMPRESS
-	default n
+
+config ZRAM_SNAPPY
+	bool "Snappy compression"
+	depends on SNAPPY_COMPRESS
+	depends on SNAPPY_DECOMPRESS
+
+endchoice
+
+config ZRAM_DEFAULT_DISKSIZE
+	int "Default size of zram in bytes"
+	depends on ZRAM
+	default 104857600
 	help
-	  Compresses relatively unused page cache pages and stores them in
-	  memory itself. This increases effective memory size and can help
-	  reduce access to backing store device(s) which is typically much
-	  slower than access to main memory.
-
-	  Statistics are expoted through sysfs interface:
-	  /sys/kernel/mm/zcache/
-
-	  Project home: http://compcache.googlecode.com/
+	  Set default zram disk size (default ~ 100MB)

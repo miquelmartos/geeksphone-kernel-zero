@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,6 +20,7 @@
 #include <linux/i2c.h>
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
+#include <linux/slab.h>
 #include <media/msm_camera.h>
 #include <mach/gpio.h>
 #include <mach/camera.h>
@@ -175,6 +176,7 @@ struct reg_addr_val_pair_struct ov7692_init_settings_array[] = {
     {0xa2, 0x0e},
 };
 
+static bool OV7692_CSI_CONFIG;
 /* 816x612, 24MHz MCLK 96MHz PCLK */
 uint32_t OV7692_FULL_SIZE_WIDTH        = 640;
 uint32_t OV7692_FULL_SIZE_HEIGHT       = 480;
@@ -296,11 +298,12 @@ static int32_t ov7692_sensor_setting(int update_type, int rt)
 	struct msm_camera_csi_params ov7692_csi_params;
 	switch (update_type) {
 	case REG_INIT:
+		OV7692_CSI_CONFIG = 0;
 		ov7692_i2c_write_b_sensor(0x0e, 0x08);
 		return rc;
 		break;
 	case UPDATE_PERIODIC:
-		if (rt == RES_PREVIEW || rt == RES_CAPTURE) {
+		if (!OV7692_CSI_CONFIG) {
 			ov7692_csi_params.lane_cnt = 1;
 			ov7692_csi_params.data_format = CSI_8BIT;
 			ov7692_csi_params.lane_assign = 0xe4;
@@ -318,6 +321,7 @@ static int32_t ov7692_sensor_setting(int update_type, int rt)
 				if (rc < 0)
 					return rc;
 			}
+			OV7692_CSI_CONFIG = 1;
 			msleep(20);
 			return rc;
 		}
@@ -343,31 +347,6 @@ static int32_t ov7692_video_config(int mode)
 	return rc;
 }
 
-static int32_t ov7692_snapshot_config(int mode)
-{
-	int32_t rc = 0;
-	int rt;
-	rt = RES_CAPTURE;
-
-	if (ov7692_sensor_setting(UPDATE_PERIODIC, rt) < 0)
-		return rc;
-	ov7692_ctrl->curr_res = ov7692_ctrl->pict_res;
-	ov7692_ctrl->sensormode = mode;
-	return rc;
-}
-static int32_t ov7692_raw_snapshot_config(int mode)
-{
-	int32_t rc = 0;
-	int rt;
-	rt = RES_CAPTURE;
-
-	if (ov7692_sensor_setting(UPDATE_PERIODIC, rt) < 0)
-		return rc;
-	ov7692_ctrl->curr_res = ov7692_ctrl->prev_res;
-	ov7692_ctrl->sensormode = mode;
-
-	return rc;
-}
 static int32_t ov7692_set_sensor_mode(int mode,
 	int res)
 {
@@ -377,10 +356,7 @@ static int32_t ov7692_set_sensor_mode(int mode,
 		rc = ov7692_video_config(mode);
 		break;
 	case SENSOR_SNAPSHOT_MODE:
-		rc = ov7692_snapshot_config(mode);
-		break;
 	case SENSOR_RAW_SNAPSHOT_MODE:
-		rc = ov7692_raw_snapshot_config(mode);
 		break;
 	default:
 		rc = -EINVAL;
@@ -394,7 +370,6 @@ static int32_t ov7692_power_down(void)
 }
 static int ov7692_probe_init_done(const struct msm_camera_sensor_info *data)
 {
-	gpio_direction_output(data->sensor_reset, 0);
 	gpio_free(data->sensor_reset);
 	return 0;
 }
@@ -409,18 +384,20 @@ static int ov7692_probe_init_sensor(const struct msm_camera_sensor_info *data)
 	if (!rc) {
 		CDBG("sensor_reset = %d\n", rc);
 		gpio_direction_output(data->sensor_reset, 0);
-		msleep(50);
-		gpio_direction_output(data->sensor_reset, 1);
-		msleep(50);
+		msleep(20);
+		gpio_set_value_cansleep(data->sensor_reset, 1);
+		msleep(20);
 	} else {
 		CDBG("gpio reset fail");
 		goto init_probe_done;
 	}
 
 	/* 3. Read sensor Model ID: */
-	if (ov7692_i2c_read(REG_OV7692_MODEL_ID_MSB, &model_id_msb, 1) < 0)
+	rc = ov7692_i2c_read(REG_OV7692_MODEL_ID_MSB, &model_id_msb, 1);
+	if (rc < 0)
 		goto init_probe_fail;
-	if (ov7692_i2c_read(REG_OV7692_MODEL_ID_LSB, &model_id_lsb, 1) < 0)
+	rc = ov7692_i2c_read(REG_OV7692_MODEL_ID_LSB, &model_id_lsb, 1);
+	if (rc < 0)
 		goto init_probe_fail;
 	model_id = (model_id_msb << 8) | ((model_id_lsb & 0x00FF)) ;
 	CDBG("ov7692 model_id = 0x%x, 0x%x, 0x%x\n",
@@ -430,14 +407,12 @@ static int ov7692_probe_init_sensor(const struct msm_camera_sensor_info *data)
 		rc = -ENODEV;
 		goto init_probe_fail;
 	}
-	msleep(10);
-  goto init_probe_done;
+	goto init_probe_done;
 init_probe_fail:
-	printk(KERN_INFO " ov7692_probe_init_sensor fails_kalyani\n");
-	gpio_direction_output(data->sensor_reset, 0);
-	gpio_free(data->sensor_reset);
+	pr_warning(" ov7692_probe_init_sensor fails\n");
+	gpio_set_value_cansleep(data->sensor_reset, 0);
 init_probe_done:
-	printk(KERN_INFO " ov7692_probe_init_sensor finishes\n");
+	CDBG(" ov7692_probe_init_sensor finishes\n");
 	return rc;
 }
 
@@ -476,9 +451,10 @@ int ov7692_sensor_open_init(const struct msm_camera_sensor_info *data)
 	}
 
 	rc = ov7692_sensor_setting(REG_INIT, RES_PREVIEW);
-	if (rc < 0)
+	if (rc < 0) {
+		gpio_set_value_cansleep(data->sensor_reset, 0);
 		goto init_fail;
-	else
+	} else
 		goto init_done;
 init_fail:
 	CDBG(" ov7692_sensor_open_init fail\n");
@@ -584,7 +560,7 @@ static int ov7692_sensor_release(void)
 	int rc = -EBADF;
 	mutex_lock(&ov7692_mut);
 	ov7692_power_down();
-	gpio_direction_output(ov7692_ctrl->sensordata->sensor_reset, 0);
+	gpio_set_value_cansleep(ov7692_ctrl->sensordata->sensor_reset, 0);
 	gpio_free(ov7692_ctrl->sensordata->sensor_reset);
 	kfree(ov7692_ctrl);
 	ov7692_ctrl = NULL;
@@ -610,6 +586,8 @@ static int ov7692_sensor_probe(const struct msm_camera_sensor_info *info,
 	s->s_init = ov7692_sensor_open_init;
 	s->s_release = ov7692_sensor_release;
 	s->s_config  = ov7692_sensor_config;
+	s->s_camera_type = FRONT_CAMERA_2D;
+	s->s_mount_angle = 0;
 	ov7692_probe_init_done(info);
 
 	return rc;

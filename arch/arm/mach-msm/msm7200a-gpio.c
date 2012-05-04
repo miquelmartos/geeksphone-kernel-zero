@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/slab.h>
 #include "msm7200a-gpio.h"
 
 /*
@@ -228,17 +229,6 @@ static void msm_gpio_irq_mask_ack(unsigned int irq)
 	msm_gpio_irq_mask(irq);
 }
 
-static int msm_gpio_irq_set_affinity(unsigned int irq,
-				const struct cpumask *dest)
-{
-	return -ENOTSUPP;
-}
-
-static int msm_gpio_irq_retrigger(unsigned int irq)
-{
-	return -ENOTSUPP;
-}
-
 static int msm_gpio_irq_set_wake(unsigned int irq, unsigned int on)
 {
 	unsigned long irq_flags;
@@ -295,8 +285,6 @@ static struct irq_chip msm_gpio_irq_chip = {
 	.mask			= msm_gpio_irq_mask,
 	.mask_ack		= msm_gpio_irq_mask_ack,
 	.unmask			= msm_gpio_irq_unmask,
-	.set_affinity		= msm_gpio_irq_set_affinity,
-	.retrigger		= msm_gpio_irq_retrigger,
 	.set_type		= msm_gpio_irq_set_type,
 	.set_wake		= msm_gpio_irq_set_wake,
 };

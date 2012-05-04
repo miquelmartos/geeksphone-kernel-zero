@@ -36,7 +36,7 @@
 
 #define PMAPP_RPC_TIMEOUT (5*HZ)
 
-#define PMAPP_DISPLAY_CLOCK_CONFIG_PROC		21
+#define PMAPP_DISPLAY_CLOCK_CONFIG_PROC	21
 #define PMAPP_VREG_LEVEL_VOTE_PROC		23
 #define PMAPP_SMPS_CLOCK_VOTE_PROC		26
 #define PMAPP_CLOCK_VOTE_PROC			27
@@ -427,7 +427,6 @@ static int pmapp_pull_rx_data(struct pmapp_buf *rp, uint *datap)
 
 	return sizeof(*datap);
 }
-
 
 static int pmapp_rpc_req_reply(struct pmapp_buf *tbuf, struct pmapp_buf *rbuf,
 	int	proc)

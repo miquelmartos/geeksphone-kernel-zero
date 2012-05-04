@@ -9,7 +9,6 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/of_device.h>
-#include <linux/slab.h>
 
 #include <asm/io.h>
 
@@ -259,11 +258,8 @@ static const struct of_device_id bbc_beep_match[] = {
 };
 
 static struct of_platform_driver bbc_beep_driver = {
-	.driver = {
-		.name = "bbcbeep",
-		.owner = THIS_MODULE,
-		.of_match_table = bbc_beep_match,
-	},
+	.name		= "bbcbeep",
+	.match_table	= bbc_beep_match,
 	.probe		= bbc_beep_probe,
 	.remove		= __devexit_p(bbc_remove),
 	.shutdown	= sparcspkr_shutdown,
@@ -341,11 +337,8 @@ static const struct of_device_id grover_beep_match[] = {
 };
 
 static struct of_platform_driver grover_beep_driver = {
-	.driver = {
-		.name = "groverbeep",
-		.owner = THIS_MODULE,
-		.of_match_table = grover_beep_match,
-	},
+	.name		= "groverbeep",
+	.match_table	= grover_beep_match,
 	.probe		= grover_beep_probe,
 	.remove		= __devexit_p(grover_remove),
 	.shutdown	= sparcspkr_shutdown,

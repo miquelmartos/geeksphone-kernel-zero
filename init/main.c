@@ -514,7 +514,6 @@ static void __init mm_init(void)
 	vmalloc_init();
 }
 
-#ifdef CONFIG_BOARD_PW28
 int battchg_pause = 0;
 EXPORT_SYMBOL(battchg_pause);
 
@@ -551,7 +550,6 @@ static void __init analyse_kernel_cmdline(int in_qemu)
 		ptr = x;
 	}
 }
-#endif
 
 asmlinkage void __init start_kernel(void)
 {
@@ -598,10 +596,8 @@ asmlinkage void __init start_kernel(void)
 	page_alloc_init();
 
 	printk(KERN_NOTICE "Kernel command line: %s\n", boot_command_line);
-#ifdef CONFIG_BOARD_PW28
 	analyse_kernel_cmdline(0);
-	printk(KERN_NOTICE "Kernel battchg_pause: %d\n", battchg_pause);
-#endif
+	printk(KERN_NOTICE "Kernel command line: %d\n", battchg_pause);
 	parse_early_param();
 	parse_args("Booting kernel", static_command_line, __start___param,
 		   __stop___param - __start___param,

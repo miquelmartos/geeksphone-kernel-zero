@@ -60,9 +60,7 @@ static enum hrtimer_restart gpio_event_input_timer_func(struct hrtimer *timer)
 	struct gpio_key_state *key_state;
 	unsigned long irqflags;
 	uint8_t debounce;
-#ifdef CONFIG_BOARD_PW28
 	unsigned int type, code;
-#endif
 
 	key_entry = ds->info->keymap;
 	key_state = ds->key_state;
@@ -121,7 +119,7 @@ static enum hrtimer_restart gpio_event_input_timer_func(struct hrtimer *timer)
 			pr_info("gpio_keys_scan_keys: key %x-%x, %d (%d) "
 				"changed to %d\n", ds->info->type,
 				key_entry->code, i, key_entry->gpio, pressed);
-#ifdef CONFIG_BOARD_PW28
+
        		type = ds->info->type; 
        		code = key_entry->code;
         	if (ds->info->info.filter) {
@@ -130,10 +128,6 @@ static enum hrtimer_restart gpio_event_input_timer_func(struct hrtimer *timer)
 		}
 		input_event(ds->input_devs->dev[key_entry->dev], type,
 			code, pressed);
-#else
-		input_event(ds->input_devs->dev[key_entry->dev], ds->info->type,
-			    key_entry->code, pressed);
-#endif
 	}
 
 #if 0
@@ -165,9 +159,7 @@ static irqreturn_t gpio_event_input_irq_handler(int irq, void *dev_id)
 	const struct gpio_event_direct_entry *key_entry;
 	unsigned long irqflags;
 	int pressed;
-#ifdef CONFIG_BOARD_PW28
 	unsigned int type, code;
-#endif
 
 	if (!ds->use_irq)
 		return IRQ_HANDLED;
@@ -202,7 +194,7 @@ static irqreturn_t gpio_event_input_irq_handler(int irq, void *dev_id)
 				"(%d) changed to %d\n",
 				ds->info->type, key_entry->code, keymap_index,
 				key_entry->gpio, pressed);
-#ifdef CONFIG_BOARD_PW28
+
        		type = ds->info->type; 
        		code = key_entry->code;
         	if (ds->info->info.filter) {
@@ -211,10 +203,6 @@ static irqreturn_t gpio_event_input_irq_handler(int irq, void *dev_id)
 		}
 		input_event(ds->input_devs->dev[key_entry->dev], type,
 			code, pressed);
-#else
-		input_event(ds->input_devs->dev[key_entry->dev], ds->info->type,
-			    key_entry->code, pressed);
-#endif
 	}
 	return IRQ_HANDLED;
 }
@@ -370,6 +358,4 @@ err_bad_keymap:
 err_ds_alloc_failed:
 	return ret;
 }
-#ifdef CONFIG_BOARD_PW28
 EXPORT_SYMBOL(gpio_event_input_func);
-#endif

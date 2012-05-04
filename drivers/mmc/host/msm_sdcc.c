@@ -1875,8 +1875,12 @@ msmsdcc_runtime_suspend(struct device *dev)
 			 * simple become pm usage counter increment operations.
 			 */
 			pm_runtime_get_noresume(dev);
+		/* If there is pending detect work abort runtime suspend */
+		if (unlikely(delayed_work_pending(&mmc->detect)))
+			rc = -EAGAIN;
+		else
 #ifdef CONFIG_BOARD_PW28
-		if (host->pdev_id != 2)
+			if (host->pdev_id != 2)
 #endif
 			rc = mmc_suspend_host(mmc);
 			pm_runtime_put_noidle(dev);

@@ -300,6 +300,3 @@ module_init(threadright_init_module);
 module_exit(threadright_cleanup_module);
 MODULE_LICENSE("LGPL");
 MODULE_AUTHOR("hi_driver_group");
-
-
-

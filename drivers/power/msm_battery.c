@@ -35,17 +35,13 @@
 
 #include <asm/atomic.h>
 
-#ifdef CONFIG_BOARD_PW28
 #include <linux/timer.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
-#endif
 
 #include <mach/msm_rpcrouter.h>
 #include <mach/msm_battery.h>
-#ifdef CONFIG_BOARD_PW28
 #include <linux/suspend.h>
-#endif
 
 #define BATTERY_RPC_PROG	0x30000089
 #define BATTERY_RPC_VER_1_1	0x00010001
@@ -95,8 +91,6 @@
 #define DBG_LIMIT(x...) do {} while (0)
 #endif
 
-#ifdef CONFIG_BOARD_PW28
-
 #define WAKE_UPDATE_BATT_INFO 2
 
 volatile int key_for_charger = 0;
@@ -118,8 +112,6 @@ struct timeval charger_time_val;
 extern int oem_rpc_client_register(int id);
 extern void set_data_to_arm9(int id, char *in, int insize);
 extern void request_suspend_state(suspend_state_t new_state);
-
-#endif
 
 enum {
 	BATTERY_REGISTRATION_SUCCESSFUL = 0,
@@ -360,9 +352,7 @@ static enum power_supply_property msm_batt_power_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CAPACITY,
-#ifdef CONFIG_BOARD_PW28
 	POWER_SUPPLY_PROP_TEMP,
-#endif
 };
 
 static int msm_batt_power_get_property(struct power_supply *psy,
@@ -394,11 +384,9 @@ static int msm_batt_power_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = msm_batt_info.batt_capacity;
 		break;
-#ifdef CONFIG_BOARD_PW28
 	case POWER_SUPPLY_PROP_TEMP:
 		val->intval = msm_batt_info.battery_temp * 10;
 		break;
-#endif
 	default:
 		return -EINVAL;
 	}
@@ -491,7 +479,7 @@ static int msm_batt_get_batt_chg_status(void)
 	return 0;
 }
 
-static void real_msm_batt_update_psy_status(void)
+static void msm_batt_update_psy_status(void)
 {
 	static u32 unnecessary_event_count;
 	u32	charger_status;
@@ -512,14 +500,12 @@ static void real_msm_batt_update_psy_status(void)
 	battery_voltage = rep_batt_chg.v1.battery_voltage;
 	battery_temp = rep_batt_chg.v1.battery_temp;
 
-#ifdef CONFIG_BOARD_PW28
 	batt_chg_msg.charger_status = charger_status;
 	batt_chg_msg.charger_type = charger_type;
 	batt_chg_msg.battery_status = battery_status;
 	batt_chg_msg.battery_level = battery_level;
 	batt_chg_msg.battery_voltage = battery_voltage;
 	batt_chg_msg.battery_temp = battery_temp;
-#endif
 
 	/* Make correction for battery status */
 	if (battery_status == BATTERY_STATUS_INVALID_v1) {
@@ -617,9 +603,6 @@ static void real_msm_batt_update_psy_status(void)
 				POWER_SUPPLY_STATUS_CHARGING;
 		}
 	}
-	
-	rep_batt_chg.v1.battery_voltage = msm_batt_get_vbatt_voltage();
-	battery_voltage = rep_batt_chg.v1.battery_voltage;
 
 	/* Correct battery voltage and status */
 	if (!battery_voltage) {
@@ -691,14 +674,12 @@ static void real_msm_batt_update_psy_status(void)
 	msm_batt_info.battery_level 	= battery_level;
 	msm_batt_info.battery_temp 	= battery_temp;
 
-#ifdef CONFIG_BOARD_PW28
 	batt_chg_msg.charger_status = charger_status;
 	batt_chg_msg.charger_type = charger_type;
 	batt_chg_msg.battery_status = battery_status;
 	batt_chg_msg.battery_level = battery_level;
 	batt_chg_msg.battery_voltage = battery_voltage;
 	batt_chg_msg.battery_temp = battery_temp;
-#endif
 
 	if (msm_batt_info.battery_voltage != battery_voltage) {
 		msm_batt_info.battery_voltage  	= battery_voltage;
@@ -711,9 +692,7 @@ static void real_msm_batt_update_psy_status(void)
 			supp = msm_batt_info.current_ps;
 	}
 
-#ifdef CONFIG_BOARD_PW28
-	if (rep_batt_chg.v1.battery_level == BATTERY_LEVEL_FULL ||
-		battery_level == BATTERY_LEVEL_FULL) {
+	if (battery_level == BATTERY_LEVEL_FULL) {
 		msm_batt_info.batt_status = POWER_SUPPLY_STATUS_FULL;
 		msm_batt_info.batt_capacity = 100;
 		{
@@ -724,7 +703,6 @@ static void real_msm_batt_update_psy_status(void)
 		}
 		supp = &msm_psy_batt;
 	}
-#endif
 
 	if (supp) {
 		msm_batt_info.current_ps = supp;
@@ -733,7 +711,6 @@ static void real_msm_batt_update_psy_status(void)
 	}
 }
 
-#ifdef CONFIG_BOARD_PW28
 void update_usb_to_gui(int i)
 {
 	struct	power_supply *supp;
@@ -791,13 +768,20 @@ void update_usb_to_gui(int i)
 	pr_info("%s ---\n", __func__);
 }
 EXPORT_SYMBOL(update_usb_to_gui);
-#endif
 
-static void msm_batt_update_psy_status(void)
+void update_chg_to_gui(int i)
 {
-	rep_batt_chg.v1.battery_voltage = msm_batt_get_vbatt_voltage();
-	real_msm_batt_update_psy_status();
+	struct	power_supply *supp;
+
+	msm_batt_info.charger_type = i;
+
+	supp = &msm_psy_ac;
+	msm_batt_info.current_chg_source = i;			
+	msm_batt_info.batt_status = i;
+	msm_batt_info.current_ps = supp;
+	power_supply_changed(supp);
 }
+EXPORT_SYMBOL(update_chg_to_gui);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 struct batt_modify_client_req {
@@ -943,11 +927,9 @@ void msm_batt_late_resume(struct early_suspend *h)
 		pr_err("%s: ERROR. invalid batt_handle\n", __func__);
 		return;
 	}
-#ifdef CONFIG_BOARD_PW28
 	msm_batt_update_psy_status();
 	rc = 0;
 	set_data_to_arm9(WAKE_UPDATE_BATT_INFO, (char *)&rc, sizeof(int));
-#endif
 	pr_debug("%s: exit\n", __func__);
 }
 #endif
@@ -1474,10 +1456,7 @@ static int __devinit msm_batt_probe(struct platform_device *pdev)
 {
 	int rc;
 	struct msm_psy_batt_pdata *pdata = pdev->dev.platform_data;
-
-#ifdef CONFIG_BOARD_PW28
 	oem_rpc_client_register(WAKE_UPDATE_BATT_INFO);
-#endif
 	if (pdev->id != -1) {
 		dev_err(&pdev->dev,
 			"%s: MSM chipsets Can only support one"
@@ -1613,7 +1592,6 @@ static int __devinit msm_batt_init_rpc(void)
 #ifdef CONFIG_BATTERY_MSM_FAKE
 	pr_info("Faking MSM battery\n");
 #else
-
 	msm_batt_info.chg_ep =
 		msm_rpc_connect_compatible(CHG_RPC_PROG, CHG_RPC_VER_4_1, 0);
 	msm_batt_info.chg_api_version =  CHG_RPC_VER_4_1;
@@ -1709,7 +1687,6 @@ static int __devinit msm_batt_init_rpc(void)
 	return rc;
 }
 
-#ifdef CONFIG_BOARD_PW28
 extern int register_charger_usb_init(void);
 extern void unregister_charger_usb(void);
 extern void hsusb_chg_vbus_draw(unsigned mA);
@@ -1720,15 +1697,6 @@ ssize_t battery_misc_read(struct file *filp, char __user *buf, size_t count, lof
 	batt_chg_msg.key_for_charger = key_for_charger;
 	key_for_charger = 0;
 
-#if 0
-	{
-	int power_on_status;
-
-	msm_proc_comm(8 /* PCOM_GET_RTC_ALARM_STATUS */, &power_on_status, 0);
-	batt_chg_msg.key_for_charger = power_on_status; 
-	pr_info("PCOM_GET_RTC_ALARM_STATUS: %x\n", power_on_status);
-	}
-#endif
 	if (batt_chg_msg.charger_type == CHARGER_TYPE_USB_PC)
 		hsusb_chg_vbus_draw(500);
 
@@ -1793,7 +1761,6 @@ struct miscdevice  misc_battery =
 	.name = "misc_battery_boot",
 	.fops = &misc_battery_fops,
 };
-#endif
 
 static int __init msm_batt_init(void)
 {
@@ -1808,9 +1775,7 @@ static int __init msm_batt_init(void)
 		msm_batt_cleanup();
 		return rc;
 	}
-#ifdef CONFIG_BOARD_PW28
 	misc_register(&misc_battery);
-#endif
 	pr_info("%s: Charger/Battery = 0x%08x/0x%08x (RPC version)\n",
 		__func__, msm_batt_info.chg_api_version,
 		msm_batt_info.batt_api_version);

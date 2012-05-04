@@ -23,10 +23,8 @@
 
 #include <mach/msm_touch.h>
 
-#ifdef CONFIG_BOARD_PW28
 #include <linux/delay.h>
 #include "tch_cal/touchp.h"
-#endif
 
 /* HW register map */
 #define TSSC_CTL_REG      0x100
@@ -66,20 +64,15 @@
 		TSSC_CTL_EN)
 
 #define TSSC_NUMBER_OF_OPERATIONS 2
-#ifdef CONFIG_BOARD_PW28
 #define TS_PENUP_TIMEOUT_MS 10
-#else
-#define TS_PENUP_TIMEOUT_MS 20
-#endif
 
 #define TS_DRIVER_NAME "msm_touchscreen"
 
-#ifdef CONFIG_BOARD_PW28
 #define X_MAX		320
 #define Y_MAX		480
 #define TOUCH_X_MAX	1024
 #define TOUCH_Y_MAX	1024
-#define P_MAX	255
+#define P_MAX		255
 #define CALIBRATION_NUM 5
 
 enum cal_state_t {
@@ -88,11 +81,7 @@ enum cal_state_t {
     CAL_CALED,
     CAL_CALING,
 };
-#else
-#define X_MAX	1024
-#define Y_MAX	1024
-#define P_MAX	256
-#endif
+
 struct ts {
 	struct input_dev *input;
 	struct timer_list timer;
@@ -101,7 +90,6 @@ struct ts {
 	unsigned int y_max;
 };
 
-#ifdef CONFIG_BOARD_PW28
 struct cal_param_t {
     int raw_x[CALIBRATION_NUM];
     int raw_y[CALIBRATION_NUM];
@@ -115,7 +103,6 @@ static struct cal_param_t ts_cal_param;
 static int ts_raw_x;
 static int ts_raw_y;
 static bool vrp_state = true;
-#endif
 
 static void __iomem *virt;
 #define TSSC_REG(reg) (virt + TSSC_##reg##_REG)
@@ -123,13 +110,11 @@ static void __iomem *virt;
 static void ts_update_pen_state(struct ts *ts, int x, int y, int pressure)
 {
 	if (pressure) {
-#ifdef CONFIG_BOARD_PW28
-		u32 lcd_x, lcd_y;
+		u32 lcd_x = (36157 * x - 2530990) / 65536;
+		u32 lcd_y = (55188 * y - 1655640) / 65536;
+
 		ts_raw_x = x;
 		ts_raw_y = y;
-
-		lcd_x = (36157 * x - 2530990) / 65536;
-		lcd_y = (55188 * y - 1655640) / 65536;
 
 		if (lcd_x > X_MAX) lcd_x = X_MAX;
 		if (lcd_y > Y_MAX) lcd_y = Y_MAX;
@@ -140,12 +125,6 @@ static void ts_update_pen_state(struct ts *ts, int x, int y, int pressure)
 		input_report_abs(ts->input, ABS_Y, lcd_y & 0xfff);
 		input_report_abs(ts->input, ABS_PRESSURE, 255);
 		input_report_key(ts->input, BTN_TOUCH, 1);
-#else
-		input_report_abs(ts->input, ABS_X, x);
-		input_report_abs(ts->input, ABS_Y, y);
-		input_report_abs(ts->input, ABS_PRESSURE, pressure);
-		input_report_key(ts->input, BTN_TOUCH, !!pressure);
-#endif
 	} else {
 		input_report_abs(ts->input, ABS_PRESSURE, 0);
 		input_report_key(ts->input, BTN_TOUCH, 0);
@@ -202,18 +181,9 @@ static irqreturn_t ts_interrupt(int irq, void *dev_id)
 		 * These x, y co-ordinates adjustments will be removed once
 		 * Android framework adds calibration framework.
 		 */
-#ifdef CONFIG_BOARD_PW28
 		lx = x;
 		ly = y;
-#else
-#ifdef CONFIG_ANDROID_TOUCHSCREEN_MSM_HACKS
-		lx = ts->x_max - x;
-		ly = ts->y_max - y;
-#else
-		lx = x;
-		ly = y;
-#endif
-#endif
+
 		ts_update_pen_state(ts, lx, ly, 255);
 		/* kick pen up timer - to make sure it expires again(!) */
 		mod_timer(&ts->timer,
@@ -228,7 +198,6 @@ out:
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_BOARD_PW28
 static ssize_t ts_raw_x_show(struct device *dev,
         struct device_attribute *attr, char *buf)
 {
@@ -343,7 +312,6 @@ static ssize_t vrp_state_store(struct device *dev,
 }
 
 static DEVICE_ATTR(vrp_state, (S_IRUGO|S_IWUGO), vrp_state_show, vrp_state_store);
-#endif
 
 static int __devinit ts_probe(struct platform_device *pdev)
 {
@@ -353,9 +321,7 @@ static int __devinit ts_probe(struct platform_device *pdev)
 	struct ts *ts;
 	unsigned int x_max, y_max, pressure_max;
 	struct msm_ts_platform_data *pdata = pdev->dev.platform_data;
-#ifdef CONFIG_BOARD_PW28
 	int status;
-#endif
 
 	/* The primary initialization of the TS Hardware
 	 * is taken care of by the ADC code on the modem side
@@ -404,32 +370,18 @@ static int __devinit ts_probe(struct platform_device *pdev)
 	input_dev->id.version = 0x0100;
 	input_dev->dev.parent = &pdev->dev;
 
-#ifdef CONFIG_BOARD_PW28
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS) | BIT_MASK(EV_SYN);
-#else
-	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
-#endif
 	input_dev->absbit[0] = BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_PRESSURE);
 	input_dev->absbit[BIT_WORD(ABS_MISC)] = BIT_MASK(ABS_MISC);
 	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 
 	if (pdata) {
-#ifdef CONFIG_BOARD_PW28
 		x_max = pdata->x_max ? : TOUCH_X_MAX;
 		y_max = pdata->y_max ? : TOUCH_Y_MAX;
-#else
-		x_max = pdata->x_max ? : X_MAX;
-		y_max = pdata->y_max ? : Y_MAX;
-#endif
 		pressure_max = pdata->pressure_max ? : P_MAX;
 	} else {
-#ifdef CONFIG_BOARD_PW28
 		x_max = TOUCH_X_MAX;
 		y_max = TOUCH_Y_MAX;
-#else
-		x_max = X_MAX;
-		y_max = Y_MAX;
-#endif
 		pressure_max = P_MAX;
 	}
 
@@ -438,16 +390,12 @@ static int __devinit ts_probe(struct platform_device *pdev)
 
 	input_set_abs_params(input_dev, ABS_X, 0, x_max, 0, 0);
 	input_set_abs_params(input_dev, ABS_Y, 0, y_max, 0, 0);
-#ifdef CONFIG_BOARD_PW28
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0, 255, 0, 0);
 	input_set_abs_params(input_dev, ABS_TOOL_WIDTH, 0, 15, 0, 0);
 
 	writel(0x4, TSSC_REG(SI));
 	status = readl(TSSC_REG(SI));
 	pr_info("%s SI = 0x%x\n",  __func__, status);
-#else
-	input_set_abs_params(input_dev, ABS_PRESSURE, 0, pressure_max, 0, 0);
-#endif
 
 	result = input_register_device(input_dev);
 	if (result)
@@ -463,7 +411,6 @@ static int __devinit ts_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ts);
 
-#ifdef CONFIG_BOARD_PW28
 	result = device_create_file(&pdev->dev, &dev_attr_cal_state);
 	if (result) {
 		printk(KERN_ERR "msm_touch can't create cal_state file\n");
@@ -493,11 +440,9 @@ static int __devinit ts_probe(struct platform_device *pdev)
 		printk(KERN_ERR "msm_touch can't create raw_y file\n");
 		goto fail_raw_y;
 	}
-#endif
 
 	return 0;
 
-#ifdef CONFIG_BOARD_PW28
 fail_raw_y:
  	device_remove_file(&pdev->dev, &dev_attr_raw_x); 
 fail_raw_x:
@@ -508,7 +453,6 @@ fail_cal_param:
 	device_remove_file(&pdev->dev, &dev_attr_cal_state);
 fail_cal_state:
 	free_irq(ts->irq, ts);
-#endif
 
 fail_req_irq:
 	input_unregister_device(input_dev);
@@ -528,13 +472,11 @@ static int __devexit ts_remove(struct platform_device *pdev)
 	struct resource *res;
 	struct ts *ts = platform_get_drvdata(pdev);
 
-#ifdef CONFIG_BOARD_PW28
 	device_remove_file(&pdev->dev, &dev_attr_raw_y); 
 	device_remove_file(&pdev->dev, &dev_attr_raw_x); 
 	device_remove_file(&pdev->dev, &dev_attr_vrp_state);
 	device_remove_file(&pdev->dev, &dev_attr_cal_param);
 	device_remove_file(&pdev->dev, &dev_attr_cal_state);
-#endif
 
 	free_irq(ts->irq, ts);
 	del_timer_sync(&ts->timer);

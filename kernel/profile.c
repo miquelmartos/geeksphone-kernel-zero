@@ -126,7 +126,7 @@ int __ref profile_init(void)
 	if (prof_buffer)
 		return 0;
 
-	prof_buffer = vmalloc(buffer_bytes);
+	prof_buffer = vzalloc(buffer_bytes);
 	if (prof_buffer)
 		return 0;
 

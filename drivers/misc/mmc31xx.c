@@ -345,3 +345,4 @@ module_exit(mmc31xx_exit);
 MODULE_AUTHOR("Robbie Cao<hjcao@memsic.com>");
 MODULE_DESCRIPTION("MEMSIC MMC31XX Magnetic Sensor Driver");
 MODULE_LICENSE("GPL");
+

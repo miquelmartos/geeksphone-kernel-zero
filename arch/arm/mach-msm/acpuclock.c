@@ -204,14 +204,15 @@ static struct clkctl_acpu_speed pll0_960_pll1_245_pll2_1200[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 19200, 0, 0, 30720 },
 	{ 0, 120000, ACPU_PLL_0, 4, 7,  60000, 1, 0,  61440 },
 	{ 1, 122880, ACPU_PLL_1, 1, 1,  61440, 1, 0,  61440 },
-	{ 0, 201600, ACPU_PLL_2, 2, 5,  67200, 2, 2,  61440 },
+	{ 0, 200000, ACPU_PLL_2, 2, 5,  66667, 2, 2,  61440 },
 	{ 1, 245760, ACPU_PLL_1, 1, 0, 122880, 1, 2,  61440 },
 	{ 1, 320000, ACPU_PLL_0, 4, 2, 160000, 1, 3, 122880 },
 	{ 0, 403200, ACPU_PLL_2, 2, 2, 134400, 2, 4, 122880 },
 	{ 1, 480000, ACPU_PLL_0, 4, 1, 160000, 2, 5, 122880 },
+//	{ 0, 595200, ACPU_PLL_2, 2, 1, 198400, 2, 7, 122880 },
 	{ 1, 604800, ACPU_PLL_2, 2, 1, 201600, 2, 7, 200000 },
-//	{ 1, 614400, ACPU_PLL_0, 4, 0, 204800, 2, 7, 200000 },
-//	{ 1, 633600, ACPU_PLL_0, 4, 0, 211200, 2, 7, 200000 },
+//	{ 0, 614400, ACPU_PLL_0, 4, 0, 204800, 2, 7, 200000 },
+//	{ 0, 633600, ACPU_PLL_0, 4, 0, 211200, 2, 7, 200000 },
 	{ 1, 652800, ACPU_PLL_0, 4, 0, 217600, 2, 7, 200000 },
 	{ 1, 672000, ACPU_PLL_0, 4, 0, 224000, 2, 7, 200000 },
 	{ 1, 691200, ACPU_PLL_0, 4, 0, 230400, 2, 7, 200000 },
@@ -223,7 +224,6 @@ static struct clkctl_acpu_speed pll0_960_pll1_245_pll2_1200[] = {
 //	{ 1, 806400, ACPU_PLL_0, 4, 0, 268800, 2, 7, 200000 },
 //	{ 1, 825600, ACPU_PLL_0, 4, 0, 275200, 2, 7, 200000 },
 //	{ 1, 844800, ACPU_PLL_0, 4, 0, 281600, 2, 7, 200000 },
-//  { 1, 864000, ACPU_PLL_0, 4, 0, 288000, 2, 7, 200000 },
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0, 0, 0}, {0, 0, 0} }
 };
 
@@ -245,10 +245,10 @@ static struct clkctl_acpu_speed pll0_960_pll1_196_pll2_1200[] = {
 #define PLL_245_MHZ	12
 #define PLL_491_MHZ	25
 #define PLL_768_MHZ	40
+#define PLL_800_MHZ	41
 #define PLL_960_MHZ	50
 #define PLL_1056_MHZ	55
-//#define PLL_1200_MHZ	62
-#define PLL_1200_MHZ	63
+#define PLL_1200_MHZ	62
 
 #define PLL_CONFIG(m0, m1, m2) { \
 	PLL_##m0##_MHZ, PLL_##m1##_MHZ, PLL_##m2##_MHZ, \
@@ -403,7 +403,8 @@ static int acpuclk_set_vdd_level(int vdd)
 }
 
 /* Set proper dividers for the given clock speed. */
-static void acpuclk_set_div(const struct clkctl_acpu_speed *hunt_s) {
+static void acpuclk_set_div(const struct clkctl_acpu_speed *hunt_s)
+{
 	uint32_t reg_clkctl, reg_clksel, clk_div, src_sel;
 
 	reg_clksel = readl(A11S_CLK_SEL_ADDR);
@@ -424,7 +425,7 @@ static void acpuclk_set_div(const struct clkctl_acpu_speed *hunt_s) {
 	}
 
 	// Perform overclocking if requested
-	if(hunt_s->a11clk_khz>604800) {
+	if(hunt_s->pll==0 && hunt_s->a11clk_khz>604800) {
 		// Change the speed of PLL0
 		writel(hunt_s->a11clk_khz/19200, PLLn_L_VAL(0));
 		udelay(50);
@@ -442,9 +443,9 @@ static void acpuclk_set_div(const struct clkctl_acpu_speed *hunt_s) {
 	writel(reg_clksel, A11S_CLK_SEL_ADDR);
 
 	// Recover from overclocking
-	if(hunt_s->a11clk_khz<=604800) {
+	if(hunt_s->pll==0 && hunt_s->a11clk_khz<=604800) {
 		// Restore the speed of PLL0
-		writel(PLL_960_MHZ, PLLn_L_VAL(0));
+		writel(50, PLLn_L_VAL(0));
 		udelay(50);
 	}
 
@@ -731,9 +732,6 @@ static void __init acpu_freq_tbl_fixup(void)
 		udelay(50);
 	} while (pll1_l == 0);
 	/* Overclock PLL2 to it's maximum frequency */
-	/* This little trick overclocks the default */
-	/* 595.2MHz to 604.8MHz and also oveclocks  */
-	/* the GPU with 1.6%						*/
 	writel(PLL_1200_MHZ, PLLn_L_VAL(2));
 	udelay(50);
 	do {
@@ -772,7 +770,7 @@ static void __init acpu_freq_tbl_fixup(void)
 	 * the max that's supported by the board (RAM used in board).
 	 */
 	axi_160mhz = (pll0_l == PLL_960_MHZ || pll1_l == PLL_960_MHZ);
-	axi_200mhz = (pll2_l == PLL_1200_MHZ);
+	axi_200mhz = (pll2_l == PLL_1200_MHZ || pll2_l == PLL_800_MHZ);
 	for (t = &acpu_freq_tbl[0]; t->a11clk_khz != 0; t++) {
 
 		if (pll0_needs_fixup && t->pll == ACPU_PLL_0)

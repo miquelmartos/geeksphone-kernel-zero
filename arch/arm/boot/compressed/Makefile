@@ -5,7 +5,7 @@
 #
 
 HEAD	= head.o
-OBJS	= misc.o decompress.o
+OBJS	= misc.o
 FONTC	= $(srctree)/drivers/video/console/font_acorn_8x8.c
 
 #
@@ -58,18 +58,20 @@ ZTEXTADDR	:= $(CONFIG_ZBOOT_ROM_TEXT)
 ZBSSADDR	:= $(CONFIG_ZBOOT_ROM_BSS)
 else
 ZTEXTADDR	:= 0
-ZBSSADDR	:= ALIGN(4)
+ZBSSADDR	:= ALIGN(8)
 endif
 
 SEDFLAGS	= s/TEXT_START/$(ZTEXTADDR)/;s/BSS_START/$(ZBSSADDR)/
 
-suffix_$(CONFIG_KERNEL_GZIP)    := gzip
-suffix_$(CONFIG_KERNEL_BZIP2)   := bzip2
-suffix_$(CONFIG_KERNEL_LZMA)    := lzma
+suffix_$(CONFIG_KERNEL_GZIP) = gzip
+suffix_$(CONFIG_KERNEL_LZO)  = lzo
 
 targets       := vmlinux vmlinux.lds \
 		piggy.$(suffix_y) piggy.$(suffix_y).o \
 		font.o font.c head.o misc.o $(OBJS)
+
+# Make sure files are removed during clean
+extra-y       += piggy.gzip piggy.lzo piggy.lzma lib1funcs.S
 
 ifeq ($(CONFIG_FUNCTION_TRACER),y)
 ORIG_CFLAGS := $(KBUILD_CFLAGS)
@@ -106,6 +108,10 @@ lib1funcs = $(obj)/lib1funcs.o
 
 $(obj)/lib1funcs.S: $(srctree)/arch/$(SRCARCH)/lib/lib1funcs.S FORCE
 	$(call cmd,shipped)
+
+# Don't allow any static data in misc.o, which
+# would otherwise mess up our GOT table
+CFLAGS_misc.o := -Dstatic=
 
 $(obj)/vmlinux: $(obj)/vmlinux.lds $(obj)/$(HEAD) $(obj)/piggy.$(suffix_y).o \
 		$(addprefix $(obj)/, $(OBJS)) $(lib1funcs) FORCE

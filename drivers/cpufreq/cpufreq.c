@@ -185,7 +185,6 @@ void cpufreq_cpu_put(struct cpufreq_policy *data)
 }
 EXPORT_SYMBOL_GPL(cpufreq_cpu_put);
 
-
 /*********************************************************************
  *                     UNIFIED DEBUG HELPERS                         *
  *********************************************************************/
@@ -272,7 +271,6 @@ static inline void cpufreq_debug_disable_ratelimit(void) { return; }
 
 #endif /* CONFIG_CPU_FREQ_DEBUG */
 
-
 /*********************************************************************
  *            EXTERNALLY AFFECTING FREQUENCY CHANGES                 *
  *********************************************************************/
@@ -315,7 +313,6 @@ static inline void adjust_jiffies(unsigned long val, struct cpufreq_freqs *ci)
 	return;
 }
 #endif
-
 
 /**
  * cpufreq_notify_transition - call notifier chain and adjust_jiffies
@@ -367,8 +364,6 @@ void cpufreq_notify_transition(struct cpufreq_freqs *freqs, unsigned int state)
 	}
 }
 EXPORT_SYMBOL_GPL(cpufreq_notify_transition);
-
-
 
 /*********************************************************************
  *                          SYSFS INTERFACE                          *
@@ -434,7 +429,6 @@ out:
 	return err;
 }
 
-
 /**
  * cpufreq_per_cpu_attr_read() / show_##file_name() -
  * print out cpufreq information
@@ -499,7 +493,6 @@ static ssize_t show_cpuinfo_cur_freq(struct cpufreq_policy *policy,
 	return sprintf(buf, "%u\n", cur_freq);
 }
 
-
 /**
  * show_scaling_governor - show the current policy for the specified CPU
  */
@@ -514,7 +507,6 @@ static ssize_t show_scaling_governor(struct cpufreq_policy *policy, char *buf)
 				policy->governor->name);
 	return -EINVAL;
 }
-
 
 /**
  * store_scaling_governor - store policy for the specified CPU
@@ -848,7 +840,6 @@ int cpufreq_add_dev_policy(unsigned int cpu, struct cpufreq_policy *policy,
 	return ret;
 }
 
-
 /* symlink affected CPUs */
 int cpufreq_add_dev_symlink(unsigned int cpu, struct cpufreq_policy *policy)
 {
@@ -945,7 +936,6 @@ err_out_kobj_put:
 	wait_for_completion(&policy->kobj_unregister);
 	return ret;
 }
-
 
 /**
  * cpufreq_add_dev - add a CPU device
@@ -1084,7 +1074,6 @@ module_out:
 	return ret;
 }
 
-
 /**
  * __cpufreq_remove_dev - remove a CPU device
  *
@@ -1115,7 +1104,6 @@ static int __cpufreq_remove_dev(struct sys_device *sys_dev)
 		return -EINVAL;
 	}
 	per_cpu(cpufreq_cpu_data, cpu) = NULL;
-
 
 #ifdef CONFIG_SMP
 	/* if this isn't the CPU which is the parent of the kobj, we
@@ -1199,15 +1187,30 @@ static int __cpufreq_remove_dev(struct sys_device *sys_dev)
 
 	unlock_policy_rwsem_write(cpu);
 
+    cpufreq_debug_enable_ratelimit();
+
+#ifdef CONFIG_HOTPLUG_CPU
+	/* when the CPU which is the parent of the kobj is hotplugged
+	 * offline, check for siblings, and create cpufreq sysfs interface
+	 * and symlinks
+	 */
+	if (unlikely(cpumask_weight(data->cpus) > 1)) {
+		/* first sibling now owns the new sysfs dir */
+		cpumask_clear_cpu(cpu, data->cpus);
+		cpufreq_add_dev(get_cpu_sysdev(cpumask_first(data->cpus)));
+
+		/* finally remove our own symlink */
+		lock_policy_rwsem_write(cpu);
+		__cpufreq_remove_dev(sys_dev);
+	}
+#endif
+
 	free_cpumask_var(data->related_cpus);
 	free_cpumask_var(data->cpus);
 	kfree(data);
-	per_cpu(cpufreq_cpu_data, cpu) = NULL;
 
-	cpufreq_debug_enable_ratelimit();
 	return 0;
 }
-
 
 static int cpufreq_remove_dev(struct sys_device *sys_dev)
 {
@@ -1257,7 +1260,6 @@ static void cpufreq_out_of_sync(unsigned int cpu, unsigned int old_freq,
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 }
-
 
 /**
  * cpufreq_quick_get - get the CPU frequency (in kHz) from policy->cur
@@ -1331,7 +1333,6 @@ out:
 	return ret_freq;
 }
 EXPORT_SYMBOL(cpufreq_get);
-
 
 /**
  *	cpufreq_suspend - let the low level driver prepare for suspend
@@ -1432,7 +1433,6 @@ static struct sysdev_driver cpufreq_sysdev_driver = {
 	.resume		= cpufreq_resume,
 };
 
-
 /*********************************************************************
  *                     NOTIFIER LISTS INTERFACE                      *
  *********************************************************************/
@@ -1473,7 +1473,6 @@ int cpufreq_register_notifier(struct notifier_block *nb, unsigned int list)
 }
 EXPORT_SYMBOL(cpufreq_register_notifier);
 
-
 /**
  *	cpufreq_unregister_notifier - unregister a driver with cpufreq
  *	@nb: notifier block to be unregistered
@@ -1505,11 +1504,9 @@ int cpufreq_unregister_notifier(struct notifier_block *nb, unsigned int list)
 }
 EXPORT_SYMBOL(cpufreq_unregister_notifier);
 
-
 /*********************************************************************
  *                              GOVERNORS                            *
  *********************************************************************/
-
 
 int __cpufreq_driver_target(struct cpufreq_policy *policy,
 			    unsigned int target_freq,
@@ -1617,7 +1614,6 @@ static int __cpufreq_governor(struct cpufreq_policy *policy,
 	return ret;
 }
 
-
 int cpufreq_register_governor(struct cpufreq_governor *governor)
 {
 	int err;
@@ -1637,7 +1633,6 @@ int cpufreq_register_governor(struct cpufreq_governor *governor)
 	return err;
 }
 EXPORT_SYMBOL_GPL(cpufreq_register_governor);
-
 
 void cpufreq_unregister_governor(struct cpufreq_governor *governor)
 {
@@ -1667,8 +1662,6 @@ void cpufreq_unregister_governor(struct cpufreq_governor *governor)
 }
 EXPORT_SYMBOL_GPL(cpufreq_unregister_governor);
 
-
-
 /*********************************************************************
  *                          POLICY INTERFACE                         *
  *********************************************************************/
@@ -1696,7 +1689,6 @@ int cpufreq_get_policy(struct cpufreq_policy *policy, unsigned int cpu)
 	return 0;
 }
 EXPORT_SYMBOL(cpufreq_get_policy);
-
 
 /*
  * data   : current policy.
@@ -1760,17 +1752,8 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data,
 			dprintk("governor switch\n");
 
 			/* end old governor */
-			if (data->governor) {
-				/*
-				 * Need to release the rwsem around governor
-				 * stop due to lock dependency between
-				 * cancel_delayed_work_sync and the read lock
-				 * taken in the delayed work handler.
-				 */
-				unlock_policy_rwsem_write(data->cpu);
+			if (data->governor)
 				__cpufreq_governor(data, CPUFREQ_GOV_STOP);
-				lock_policy_rwsem_write(data->cpu);
-			}
 
 			/* start new governor */
 			data->governor = policy->governor;
@@ -1961,7 +1944,6 @@ err_null_driver:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cpufreq_register_driver);
-
 
 /**
  * cpufreq_unregister_driver - unregister the current CPUFreq driver

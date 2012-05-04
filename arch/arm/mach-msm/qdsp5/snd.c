@@ -56,7 +56,7 @@ static struct snd_ctxt the_snd;
 #define RPC_SND_PROG	0x30000002
 #define RPC_SND_CB_PROG	0x31000002
 
-#define RPC_SND_VERS                    0x00020001
+#define RPC_SND_VERS	0x00020001
 
 #define SND_SET_DEVICE_PROC 2
 #define SND_SET_VOLUME_PROC 3
@@ -446,6 +446,7 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
         } while (0);
         kfree(acm_req_pkg);
         break;
+
 	default:
 		MM_ERR("unknown command\n");
 		rc = -EINVAL;

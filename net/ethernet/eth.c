@@ -393,4 +393,3 @@ ssize_t sysfs_format_mac(char *buf, const unsigned char *addr, int len)
 	return ((ssize_t) l);
 }
 EXPORT_SYMBOL(sysfs_format_mac);
-

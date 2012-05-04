@@ -33,7 +33,6 @@
 #ifndef __LINUX_RCUPDATE_H
 #define __LINUX_RCUPDATE_H
 
-#include <linux/rcu_types.h>
 #include <linux/cache.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
@@ -41,6 +40,16 @@
 #include <linux/seqlock.h>
 #include <linux/lockdep.h>
 #include <linux/completion.h>
+
+/**
+ * struct rcu_head - callback structure for use with RCU
+ * @next: next update requests in a list
+ * @func: actual update function to call after the grace period.
+ */
+struct rcu_head {
+	struct rcu_head *next;
+	void (*func)(struct rcu_head *head);
+};
 
 /* Exported common interfaces */
 #ifdef CONFIG_TREE_PREEMPT_RCU
@@ -65,10 +74,10 @@ extern int rcu_needs_cpu(int cpu);
 static inline int rcu_needs_cpu(int cpu) { return 0; }
 #endif
 extern int rcu_scheduler_active;
-#include "rcutiny.h" /* Figure out why later. */
-// #if defined(CONFIG_TREE_RCU) || defined(CONFIG_TREE_PREEMPT_RCU)
-// #include <linux/rcutree.h>
-#ifdef CONFIG_TINY_RCU
+
+#if defined(CONFIG_TREE_RCU) || defined(CONFIG_TREE_PREEMPT_RCU)
+#include <linux/rcutree.h>
+#elif CONFIG_TINY_RCU
 #include <linux/rcutiny.h>
 #else
 #error "Unknown RCU implementation specified to kernel configuration"

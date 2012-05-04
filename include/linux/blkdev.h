@@ -319,7 +319,6 @@ struct queue_limits {
 
 	unsigned char		misaligned;
 	unsigned char		no_cluster;
-	unsigned int		discard_granularity;
 };
 
 struct request_queue

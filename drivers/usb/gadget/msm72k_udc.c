@@ -61,7 +61,6 @@ static const char driver_name[] = "msm72k_udc";
 
 #define SETUP_BUF_SIZE      4096
 
-
 static const char *const ep_name[] = {
 	"ep0out", "ep1out", "ep2out", "ep3out",
 	"ep4out", "ep5out", "ep6out", "ep7out",
@@ -563,10 +562,10 @@ static void usb_ept_start(struct msm_endpoint *ept)
 		}
 	}
 
-	if (!(readl(USB_ENDPTSTAT) & n))
+	/*if (!(readl(USB_ENDPTSTAT) & n))
 		pr_err("Unable to prime the ept%d%s\n",
 				ept->num,
-				ept->flags & EPT_FLAG_IN ? "in" : "out");
+				ept->flags & EPT_FLAG_IN ? "in" : "out");*/
 }
 
 int usb_ept_queue_xfer(struct msm_endpoint *ept, struct usb_request *_req)
@@ -755,6 +754,14 @@ static void handle_setup(struct usb_info *ui)
 	struct usb_ctrlrequest ctl;
 	struct usb_request *req = ui->setup_req;
 	int ret;
+
+	/* USB hardware sometimes generate interrupt before
+	 * 8 bytes of SETUP packet are written to system memory.
+	 * This results in fetching wrong setup_data sometimes.
+	 * TODO: Remove below workaround of adding 1us delay once
+	 * it gets fixed in hardware.
+	 */
+	udelay(10);
 
 	memcpy(&ctl, ui->ep0out.head->setup_data, sizeof(ctl));
 	writel(EPT_RX(0), USB_ENDPTSETUPSTAT);

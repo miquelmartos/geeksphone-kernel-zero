@@ -111,6 +111,7 @@ module_param_named(
 				msm_pm_smem_data->pending_irqs); \
 	} while (0)
 
+
 /******************************************************************************
  * Sleep Modes and Parameters
  *****************************************************************************/
@@ -401,20 +402,15 @@ static void msm_pm_config_hw_before_power_down(void)
 {
 #if defined(CONFIG_ARCH_MSM7X30)
 	writel(1, APPS_PWRDOWN);
-	dsb();
 	writel(4, APPS_SECOP);
 #elif defined(CONFIG_ARCH_MSM7X27)
 	writel(0x1f, APPS_CLK_SLEEP_EN);
-	dsb();
 	writel(1, APPS_PWRDOWN);
 #else
 	writel(0x1f, APPS_CLK_SLEEP_EN);
-	dsb();
 	writel(1, APPS_PWRDOWN);
-	dsb();
 	writel(0, APPS_STANDBY_CTL);
 #endif
-	dsb();
 }
 
 /*
@@ -424,15 +420,11 @@ static void msm_pm_config_hw_after_power_up(void)
 {
 #if defined(CONFIG_ARCH_MSM7X30)
 	writel(0, APPS_SECOP);
-	dsb();
 	writel(0, APPS_PWRDOWN);
-	dsb();
 	msm_spm_reinit();
 #else
 	writel(0, APPS_PWRDOWN);
-	dsb();
 	writel(0, APPS_CLK_SLEEP_EN);
-	dsb();
 #endif
 }
 
@@ -446,7 +438,6 @@ static void msm_pm_config_hw_before_swfi(void)
 #elif defined(CONFIG_ARCH_MSM7X27)
 	writel(0x0f, APPS_CLK_SLEEP_EN);
 #endif
-	dsb();
 }
 
 /*
@@ -943,17 +934,6 @@ struct msm_pm_smem_t {
 static struct msm_pm_smem_t *msm_pm_smem_data;
 static uint32_t *msm_pm_reset_vector;
 static atomic_t msm_pm_init_done = ATOMIC_INIT(0);
-
-static int msm_pm_modem_busy(void)
-{
-	if (!(smsm_get_state(SMSM_POWER_MASTER_DEM) & DEM_MASTER_SMSM_READY)) {
-		MSM_PM_DPRINTK(MSM_PM_DEBUG_POWER_COLLAPSE,
-			KERN_INFO, "%s(): master not ready\n", __func__);
-		return -EBUSY;
-	}
-
-	return 0;
-}
 
 /*
  * Power collapse the Apps processor.  This function executes the handshake
@@ -1455,26 +1435,6 @@ void arch_idle(void)
 			allow[i] = false;
 	}
 
-	if (allow[MSM_PM_SLEEP_MODE_POWER_COLLAPSE] ||
-		allow[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_NO_XO_SHUTDOWN]) {
-		uint32_t wait_us = 0;
-		while (msm_pm_modem_busy() && wait_us) {
-			if (wait_us > 100) {
-				udelay(100);
-				wait_us -= 100;
-			} else {
-				udelay(wait_us);
-				wait_us = 0;
-			}
-		}
-
-		if (msm_pm_modem_busy()) {
-			allow[MSM_PM_SLEEP_MODE_POWER_COLLAPSE] = false;
-			allow[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_NO_XO_SHUTDOWN]
-				= false;
-		}
-	}
-
 #ifdef CONFIG_MSM_IDLE_STATS
 	ret = msm_clock_require_tcxo(clk_ids, MAX_NR_CLKS);
 #elif defined(CONFIG_CLOCK_BASED_SLEEP_LIMIT)
@@ -1683,9 +1643,6 @@ static int msm_pm_enter(suspend_state_t state)
 			sleep_limit |= SLEEP_RESOURCE_MEMORY_BIT0;
 #endif
 
-		for (i = 0; i < 30 && msm_pm_modem_busy(); i++)
-			udelay(500);
-
 		ret = msm_pm_power_collapse(
 			false, msm_pm_max_sleep_time, sleep_limit);
 
@@ -1751,11 +1708,7 @@ static void msm_pm_power_off(void)
 static void msm_pm_restart(char str, const char *cmd)
 {
 	msm_rpcrouter_close();
-#ifdef CONFIG_BOARD_PW28
 	msm_proc_comm(PCOM_RESET_CHIP_IMM, &restart_reason, 0);
-#else
-	msm_proc_comm(PCOM_RESET_CHIP, &restart_reason, 0);
-#endif
 
 	for (;;)
 		;
@@ -1775,10 +1728,9 @@ static int msm_reboot_call
 		} else if (!strncmp(cmd, "oem-", 4)) {
 			unsigned code = simple_strtoul(cmd + 4, 0, 16) & 0xff;
 			restart_reason = 0x6f656d00 | code;
-		} 
- 		else if (!strcmp(cmd, "update-radio")) {
+		} else if (!strcmp(cmd, "update-radio")) {
 			restart_reason = 0x34344545;
-		}else {
+		} else {
 			restart_reason = 0x77665501;
 		}
 	}
@@ -1788,7 +1740,6 @@ static int msm_reboot_call
 static struct notifier_block msm_reboot_notifier = {
 	.notifier_call = msm_reboot_call,
 };
-
 
 /******************************************************************************
  *

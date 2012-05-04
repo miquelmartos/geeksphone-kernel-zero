@@ -295,12 +295,12 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 
 	radix_tree_replace_slot(pslot, newpage);
 
-	page_unfreeze_refs(page, expected_count);
 	/*
-	 * Drop cache reference from old page.
+	 * Drop cache reference from old page by unfreezing
+	 * to one less reference.
 	 * We know this isn't the last reference.
 	 */
-	__put_page(page);
+	page_unfreeze_refs(page, expected_count - 1);
 
 	/*
 	 * If moved to a different zone then also account
@@ -1094,14 +1094,14 @@ SYSCALL_DEFINE6(move_pages, pid_t, pid, unsigned long, nr_pages,
 		return -EPERM;
 
 	/* Find the mm_struct */
-	rcu_read_lock();
+	read_lock(&tasklist_lock);
 	task = pid ? find_task_by_vpid(pid) : current;
 	if (!task) {
-		rcu_read_unlock();
+		read_unlock(&tasklist_lock);
 		return -ESRCH;
 	}
 	mm = get_task_mm(task);
-	rcu_read_unlock();
+	read_unlock(&tasklist_lock);
 
 	if (!mm)
 		return -EINVAL;

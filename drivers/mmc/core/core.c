@@ -151,7 +151,6 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 			mrq->done(mrq);
 	}
 }
-
 EXPORT_SYMBOL(mmc_request_done);
 
 static void
@@ -239,9 +238,8 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 
 	mmc_start_request(host, mrq);
 
-	wait_for_completion_io(&complete);
+	wait_for_completion(&complete);
 }
-
 EXPORT_SYMBOL(mmc_wait_for_req);
 
 /**
@@ -272,7 +270,6 @@ int mmc_wait_for_cmd(struct mmc_host *host, struct mmc_command *cmd, int retries
 
 	return cmd->error;
 }
-
 EXPORT_SYMBOL(mmc_wait_for_cmd);
 
 /**
@@ -326,7 +323,7 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 			 * The limit is really 250 ms, but that is
 			 * insufficient for some crappy cards.
 			 */
-			limit_us = 800000;
+			limit_us = 300000;
 		else
 			limit_us = 100000;
 
@@ -520,7 +517,6 @@ int __mmc_claim_host(struct mmc_host *host, atomic_t *abort)
 		mmc_host_enable(host);
 	return stop;
 }
-
 EXPORT_SYMBOL(__mmc_claim_host);
 
 /**
@@ -546,13 +542,6 @@ int mmc_try_claim_host(struct mmc_host *host)
 }
 EXPORT_SYMBOL(mmc_try_claim_host);
 
-/**
- *     mmc_do_release_host - release a claimed host
- *     @host: mmc host to release
- *
- *     If you successfully claimed a host, this function will
- *     release it again.
- */
 void mmc_do_release_host(struct mmc_host *host)
 {
 	unsigned long flags;
@@ -631,7 +620,6 @@ void mmc_release_host(struct mmc_host *host)
 
 	mmc_do_release_host(host);
 }
-
 EXPORT_SYMBOL(mmc_release_host);
 
 /*
@@ -1034,7 +1022,6 @@ int mmc_resume_bus(struct mmc_host *host)
 	printk("%s: Deferred resume completed\n", mmc_hostname(host));
 	return 0;
 }
-
 EXPORT_SYMBOL(mmc_resume_bus);
 
 /*
@@ -1107,9 +1094,7 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 
 	mmc_schedule_delayed_work(&host->detect, delay);
 }
-
 EXPORT_SYMBOL(mmc_detect_change);
-
 
 void mmc_rescan(struct work_struct *work)
 {
@@ -1125,9 +1110,10 @@ void mmc_rescan(struct work_struct *work)
 	if ((host->bus_ops != NULL) && host->bus_ops->detect &&
 		!host->bus_dead) {
 		host->bus_ops->detect(host);
+
 		/* If the card was removed the bus will be marked
-		 * as dead - extend the wakelock so userspace
-		 * can respond */
+		* as dead - extend the wakelock so userspace
+		* can respond */
 		if (host->bus_dead)
 			extend_wakelock = 1;
 	}
@@ -1387,7 +1373,6 @@ int mmc_suspend_host(struct mmc_host *host)
 
 	return err;
 }
-
 EXPORT_SYMBOL(mmc_suspend_host);
 
 /**
@@ -1495,7 +1480,6 @@ void mmc_set_embedded_sdio_data(struct mmc_host *host,
 	host->embedded_sdio_data.funcs = funcs;
 	host->embedded_sdio_data.num_funcs = num_funcs;
 }
-
 EXPORT_SYMBOL(mmc_set_embedded_sdio_data);
 #endif
 

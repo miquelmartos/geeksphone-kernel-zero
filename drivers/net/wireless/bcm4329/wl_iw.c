@@ -5875,7 +5875,7 @@ static int iwpriv_set_cscan(struct net_device *dev, struct iw_request_info *info
 	int nssid = 0;
 	int nchan = 0;
 
-	WL_TRACE(("\%s: info->cmd:%x, info->flags:%x, u.data=0x%p, u.len=%d\n",
+	WL_TRACE(("%s: info->cmd:%x, info->flags:%x, u.data=0x%p, u.len=%d\n",
 		__FUNCTION__, info->cmd, info->flags,
 		wrqu->data.pointer, wrqu->data.length));
 
@@ -7238,9 +7238,9 @@ static int wl_iw_set_priv(
 			ret = wl_iw_set_pno_enable(dev, info, (union iwreq_data *)dwrq, extra);
 #endif
 #if defined(CSCAN)
-	    else if (strnicmp(extra, CSCAN_COMMAND, strlen(CSCAN_COMMAND)) == 0)
+		else if (strnicmp(extra, CSCAN_COMMAND, strlen(CSCAN_COMMAND)) == 0)
 			ret = wl_iw_set_cscan(dev, info, (union iwreq_data *)dwrq, extra);
-#endif 
+#endif
 #ifdef CUSTOMER_HW2
 		else if (strnicmp(extra, "POWERMODE", strlen("POWERMODE")) == 0)
 			ret = wl_iw_set_power_mode(dev, info, (union iwreq_data *)dwrq, extra);
@@ -7254,6 +7254,18 @@ static int wl_iw_set_priv(
 #endif
 		else if (strnicmp(extra, "GETPOWER", strlen("GETPOWER")) == 0)
 			ret = wl_iw_get_power_mode(dev, info, (union iwreq_data *)dwrq, extra);
+		else if (strnicmp(extra, RXFILTER_START_CMD, strlen(RXFILTER_START_CMD)) == 0)
+			ret = net_os_set_packet_filter(dev, 1);
+		else if (strnicmp(extra, RXFILTER_STOP_CMD, strlen(RXFILTER_STOP_CMD)) == 0)
+			ret = net_os_set_packet_filter(dev, 0);
+		else if (strnicmp(extra, RXFILTER_ADD_CMD, strlen(RXFILTER_ADD_CMD)) == 0) {
+			int filter_num = *(extra + strlen(RXFILTER_ADD_CMD) + 1) - '0';
+			ret = net_os_rxfilter_add_remove(dev, TRUE, filter_num);
+		}
+		else if (strnicmp(extra, RXFILTER_REMOVE_CMD, strlen(RXFILTER_REMOVE_CMD)) == 0) {
+			int filter_num = *(extra + strlen(RXFILTER_REMOVE_CMD) + 1) - '0';
+			ret = net_os_rxfilter_add_remove(dev, FALSE, filter_num);
+		}
 #ifdef SOFTAP
 #ifdef SOFTAP_TLV_CFG
 		else if (strnicmp(extra, SOFTAP_SET_CMD, strlen(SOFTAP_SET_CMD)) == 0) {

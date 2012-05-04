@@ -173,3 +173,4 @@ struct uinput_user_dev {
         int absflat[ABS_MAX + 1];
 };
 #endif	/* __UINPUT_H_ */
+

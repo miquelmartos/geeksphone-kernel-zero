@@ -193,8 +193,8 @@ static int menu_select(struct cpuidle_device *dev)
 		data->needs_update = 0;
 	}
 
-    data->last_state_idx = 0;
-    data->exit_us = 0;
+	data->last_state_idx = 0;
+	data->exit_us = 0;
 
 	/* Special case when user has set very strict latency requirement */
 	if (unlikely(latency_req == 0))

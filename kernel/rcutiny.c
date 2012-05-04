@@ -36,7 +36,6 @@
 #include <linux/cpu.h>
 #include <linux/mutex.h>
 #include <linux/time.h>
-#include <linux/rcutiny.h>
 
 /* Global control variables for rcupdate callback mechanism. */
 struct rcu_ctrlblk {

@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/smp_lock.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/uinput.h>
@@ -283,6 +284,7 @@ static int uinput_open(struct inode *inode, struct file *file)
 	if (!newdev)
 		return -ENOMEM;
 
+	lock_kernel();
 	mutex_init(&newdev->mutex);
 	spin_lock_init(&newdev->requests_lock);
 	init_waitqueue_head(&newdev->requests_waitq);
@@ -290,7 +292,7 @@ static int uinput_open(struct inode *inode, struct file *file)
 	newdev->state = UIST_NEW_DEVICE;
 
 	file->private_data = newdev;
-	nonseekable_open(inode, file);
+	unlock_kernel();
 
 	return 0;
 }
@@ -300,7 +302,7 @@ static int uinput_validate_absbits(struct input_dev *dev)
 	unsigned int cnt;
 	int retval = 0;
 
-	for (cnt = 0; cnt < ABS_CNT; cnt++) {
+	for (cnt = 0; cnt < ABS_MAX + 1; cnt++) {
 		if (!test_bit(cnt, dev->absbit))
 			continue;
 
@@ -387,7 +389,7 @@ static int uinput_setup_device(struct uinput_device *udev, const char __user *bu
 	dev->id.product	= user_dev->id.product;
 	dev->id.version	= user_dev->id.version;
 
-	size = sizeof(int) * ABS_CNT;
+	size = sizeof(int) * (ABS_MAX + 1);
 	memcpy(dev->absmax, user_dev->absmax, size);
 	memcpy(dev->absmin, user_dev->absmin, size);
 	memcpy(dev->absfuzz, user_dev->absfuzz, size);

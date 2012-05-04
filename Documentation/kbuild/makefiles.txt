@@ -501,7 +501,7 @@ more details, with real examples.
 	In the above example, the option -falign-functions=4 is used for
 	gcc >= 3.00. For gcc < 3.00, -malign-functions=4 is used.
 	Note: cc-option-align uses KBUILD_CFLAGS for $(CC) options
-	
+
 	cc-disable-warning
 	cc-disable-warning checks if gcc supports a given warning and returns
 	the commandline switch to disable it. This special function is needed,

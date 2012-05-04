@@ -992,6 +992,9 @@ dhd_pktfilter_offload_enable(dhd_pub_t * dhd, char *arg, int enable, int master_
 	wl_pkt_filter_enable_t	enable_parm;
 	wl_pkt_filter_enable_t	* pkt_filterp;
 
+	if (!arg)
+		return;	
+
 	if (!(arg_save = MALLOC(dhd->osh, strlen(arg) + 1))) {
 		DHD_ERROR(("%s: kmalloc failed\n", __FUNCTION__));
 		goto fail;
@@ -1064,6 +1067,9 @@ dhd_pktfilter_offload_set(dhd_pub_t * dhd, char *arg)
 	int					i = 0;
 	char				*arg_save = 0, *arg_org = 0;
 #define BUF_SIZE		2048
+
+	if (!arg)
+		return;
 
 	if (!(arg_save = MALLOC(dhd->osh, strlen(arg) + 1))) {
 		DHD_ERROR(("%s: kmalloc failed\n", __FUNCTION__));
@@ -1890,6 +1896,41 @@ fail:
 
 #endif
 
+/*
+ * returns = TRUE if associated, FALSE if not associated
+ */
+bool is_associated(dhd_pub_t *dhd, void *bss_buf)
+{
+	char bssid[ETHER_ADDR_LEN], zbuf[ETHER_ADDR_LEN];
+	int ret = -1;
+
+	bzero(bssid, ETHER_ADDR_LEN);
+	bzero(zbuf, ETHER_ADDR_LEN);
+
+	ret = dhdcdc_set_ioctl(dhd, 0, WLC_GET_BSSID, (char *)bssid, ETHER_ADDR_LEN);
+	DHD_TRACE((" %s WLC_GET_BSSID ioctl res = %d\n", __FUNCTION__, ret));
+
+	if (ret == BCME_NOTASSOCIATED) {
+		DHD_TRACE(("%s: not associated! res:%d\n", __FUNCTION__, ret));
+	}
+
+	if (ret < 0)
+		return FALSE;
+
+	if ((memcmp(bssid, zbuf, ETHER_ADDR_LEN) != 0)) {
+		/*  STA is assocoated BSSID is non zero */
+
+		if (bss_buf) {
+			/* return bss if caller provided buf */
+			memcpy(bss_buf, bssid, ETHER_ADDR_LEN);
+		}
+		return TRUE;
+	} else {
+		DHD_TRACE(("%s: WLC_GET_BSSID ioctl returned zero bssid\n", __FUNCTION__));
+		return FALSE;
+	}
+}
+
 /* Function to estimate possible DTIM_SKIP value */
 int dhd_get_dtim_skip(dhd_pub_t *dhd)
 {
@@ -1973,7 +2014,6 @@ int dhd_pno_clean(dhd_pub_t *dhd)
 int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled)
 {
 	char iovbuf[128];
-	uint8 bssid[6];
 	int ret = -1;
 
 	if ((!dhd) && ((pfn_enabled != 0) || (pfn_enabled != 1))) {
@@ -1984,12 +2024,7 @@ int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled)
 	memset(iovbuf, 0, sizeof(iovbuf));
 
 	/* Check if disassoc to enable pno */
-	if ((pfn_enabled) && \
-		((ret = dhdcdc_set_ioctl(dhd, 0, WLC_GET_BSSID, \
-				 (char *)&bssid, ETHER_ADDR_LEN)) == BCME_NOTASSOCIATED)) {
-		DHD_TRACE(("%s pno enable called in disassoc mode\n", __FUNCTION__));
-	}
-	else if (pfn_enabled) {
+	if (pfn_enabled && (is_associated(dhd, NULL) == TRUE)) {
 		DHD_ERROR(("%s pno enable called in assoc mode ret=%d\n", \
 			__FUNCTION__, ret));
 		return ret;

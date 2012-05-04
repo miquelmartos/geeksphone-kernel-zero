@@ -54,6 +54,7 @@ static int deflate_comp_init(struct deflate_ctx *ctx)
 		ret = -ENOMEM;
 		goto out;
 	}
+
 	ret = zlib_deflateInit2(stream, DEFLATE_DEF_LEVEL, Z_DEFLATED,
 	                        -DEFLATE_DEF_WINBITS, DEFLATE_DEF_MEMLEVEL,
 	                        Z_DEFAULT_STRATEGY);

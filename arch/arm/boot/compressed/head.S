@@ -306,7 +306,7 @@ LC0:		.word	LC0			@ r1
 		.word	_start			@ r5
 		.word	_got_start		@ r6
 		.word	_got_end		@ ip
-		.word  user_stack_end    @ sp
+		.word	user_stack_end		@ sp
 LC1:		.word	reloc_end - reloc_start
 		.size	LC0, . - LC0
 

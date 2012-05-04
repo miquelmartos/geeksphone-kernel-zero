@@ -248,6 +248,7 @@ static struct attribute *msm_fb_attrs[] = {
 	&dev_attr_msm_fb_type.attr,
 	NULL,
 };
+
 static struct attribute_group msm_fb_attr_group = {
 	.attrs = msm_fb_attrs,
 };
@@ -263,6 +264,7 @@ static int msm_fb_create_sysfs(struct platform_device *pdev)
 			rc);
 	return rc;
 }
+
 static void msm_fb_remove_sysfs(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd = platform_get_drvdata(pdev);
@@ -2477,7 +2479,6 @@ static void msmfb_set_color_conv(struct mdp_ccs *p)
 	}
 }
 #endif
-
 
 static int msm_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			unsigned long arg)

@@ -17,6 +17,7 @@
 #ifndef __ARCH_ARM_MACH_MSM_CLOCK_H
 #define __ARCH_ARM_MACH_MSM_CLOCK_H
 
+#include <linux/init.h>
 #include <linux/list.h>
 #include <mach/clk.h>
 
@@ -45,7 +46,8 @@ struct clk_ops {
 	int (*set_max_rate)(unsigned id, unsigned rate);
 	int (*set_flags)(unsigned id, unsigned flags);
 	unsigned (*get_rate)(unsigned id);
-	signed (*measure_rate)(unsigned id);
+	int (*list_rate)(unsigned id, unsigned n);
+	int (*measure_rate)(unsigned id);
 	unsigned (*is_enabled)(unsigned id);
 	long (*round_rate)(unsigned id, unsigned rate);
 };
@@ -84,20 +86,6 @@ struct clk {
 #define CLK_MIN CLKFLAG_MIN
 #define CLK_MAX CLKFLAG_MAX
 #define CLK_MINMAX (CLK_MIN | CLK_MAX)
-#define NR_CLKS	P_NR_CLKS
-
-enum {
-	PLL_0 = 0,
-	PLL_1,
-	PLL_2,
-	PLL_3,
-	PLL_4,
-	PLL_5,
-	PLL_6,
-	PLL_7,
-	PLL_8,
-	NUM_PLL
-};
 
 enum clkvote_client {
 	CLKVOTE_ACPUCLK = 0,
@@ -105,8 +93,14 @@ enum clkvote_client {
 	CLKVOTE_MAX,
 };
 
-extern unsigned msm_num_clocks;
-extern struct clk *msm_clocks;
+#ifdef CONFIG_DEBUG_FS
+int __init clock_debug_init(void);
+int __init clock_debug_add(struct clk *clock);
+#else
+static inline int __init clock_debug_init(void) { return 0; }
+static inline int __init clock_debug_add(struct clk *clock) { return 0; }
+#endif
+
 extern struct clk_ops clk_ops_remote;
 
 #if defined(CONFIG_ARCH_MSM7X30) || defined(CONFIG_ARCH_MSM8X60)
@@ -114,12 +108,7 @@ void msm_clk_soc_init(void);
 void msm_clk_soc_set_ops(struct clk *clk);
 #else
 static inline void msm_clk_soc_init(void) { }
-static inline void msm_clk_soc_set_ops(struct clk *clk) { 
-	if (!clk->ops) {
-			clk->ops = &clk_ops_remote;
-			clk->id = clk->remote_id;
-	}
-}
+static inline void msm_clk_soc_set_ops(struct clk *clk) { }
 #endif
 
 int msm_clock_require_tcxo(unsigned long *reason, int nbits);
@@ -128,3 +117,4 @@ int ebi1_clk_set_min_rate(enum clkvote_client client, unsigned long rate);
 unsigned long clk_get_max_axi_khz(void);
 
 #endif
+

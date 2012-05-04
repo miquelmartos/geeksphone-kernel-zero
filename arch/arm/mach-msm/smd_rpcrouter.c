@@ -840,7 +840,6 @@ static void do_create_rpcrouter_pdev(struct work_struct *work)
 	D("%s: modem rpc router up\n", __func__);
 	if (atomic_cmpxchg(&rpcrouter_pdev_created, 0, 1) == 0)
 		platform_device_register(&rpcrouter_pdev);
-	
 	complete_all(&rpc_remote_router_up);
 }
 
