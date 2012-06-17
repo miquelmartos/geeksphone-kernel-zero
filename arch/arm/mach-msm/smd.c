@@ -34,6 +34,8 @@
 #include <mach/system.h>
 #include <linux/remote_spinlock.h>
 
+#include <asm/cacheflush.h>
+
 #include "smd_private.h"
 #include "proc_comm.h"
 #include "modem_notifier.h"
@@ -206,6 +208,9 @@ static void handle_modem_crash(void)
 	if (msm_reset_hook)
 		msm_reset_hook();
 	*/
+
+	/* Make sure the data and buffers are all stored in memory */
+	flush_cache_all();
 
 	/* in this case the modem or watchdog should reboot us */
 	for (;;)
@@ -1043,10 +1048,10 @@ int smd_close(smd_channel_t *ch)
 {
 	unsigned long flags;
 
-	SMD_INFO("smd_close(%p)\n", ch);
-
 	if (ch == 0)
 		return -1;
+
+	SMD_INFO("smd_close(%s)\n", ch->name);
 
 	spin_lock_irqsave(&smd_lock, flags);
 	ch->notify = do_nothing_notify;

@@ -43,6 +43,9 @@ struct clk *clk_get(struct device *dev, const char *id)
 {
 	struct clk *clk;
 
+	if (!id)
+		return ERR_PTR(-ENOENT);
+
 	mutex_lock(&clocks_mutex);
 
 	list_for_each_entry(clk, &clocks, list)

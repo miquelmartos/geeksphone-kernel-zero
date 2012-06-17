@@ -23,7 +23,9 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/synaptics_i2c_rmi.h>
+#include <linux/vrpanel.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #define FINGER_NUM_CAP 5
 
@@ -150,6 +152,9 @@ static void synaptics_ts_report(
     struct synaptics_ts_finger *finger,
     int num)
 {
+#ifdef CONFIG_TOUCHSCREEN_VRPANEL
+    int invalid_x = 0, invalid_y = 0;
+#endif
     int pos[num][2];
 				int f, a;
     int z = 0, w = 0;
@@ -189,25 +194,48 @@ static void synaptics_ts_report(
 
     if (s_num > num) {
         for (f = 0; f < (s_num - num); f++) {
+#ifndef CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI_ICS
 				input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, z);
 				input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, w);
+#endif
 				input_mt_sync(ts->input_dev);
         }
     }
     
     for (f = s_num = 0; f < num; f++) {
         if (finger[f].State) {
+#ifdef CONFIG_TOUCHSCREEN_VRPANEL
+            if (pos[f][1] < 480) {
+#endif
             	input_report_abs(ts->input_dev, ABS_MT_POSITION_X, pos[f][0]);
             	input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, pos[f][1]);
                 z = finger[f].Z;
                 w = (finger[f].Wx + finger[f].Wy) / 2;
                 s_num++;
+#ifdef CONFIG_TOUCHSCREEN_VRPANEL
+            }
+            else {
+                invalid_x = pos[f][0];
+                invalid_y = pos[f][1];
+            }
+#endif
         }
+#ifndef CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI_ICS
 					input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, z);
 					input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, w);
+#endif
 					input_mt_sync(ts->input_dev);
 				}
-				input_sync(ts->input_dev); 
+				input_sync(ts->input_dev);
+    
+#ifdef CONFIG_TOUCHSCREEN_VRPANEL
+    if (num > s_num) {
+        VrpCallback((TouchSampleValidFlag|TouchSampleDownFlag), invalid_x, invalid_y);
+			}
+    else {
+		VrpCallback(TouchSampleValidFlag, 0, 0);
+    }
+#endif
 }
 
 static void synaptics_ts_work_func(struct work_struct *work)
@@ -521,9 +549,15 @@ static int synaptics_ts_probe(
     inactive_area_top = -inactive_area_top;
     inactive_area_right = max_x + inactive_area_right;
     inactive_area_bottom = max_y + inactive_area_bottom;
-
+#if 0
+    synaptics_recal_pos(ts, &inactive_area_left, &inactive_area_top);
+    synaptics_recal_pos(ts, &inactive_area_right, &inactive_area_bottom);
+	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, inactive_area_left, inactive_area_right, fuzz_x, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, inactive_area_top, inactive_area_bottom, fuzz_y, 0);
+#else
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0, 320, fuzz_x, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, 480, fuzz_y, 0);
+#endif
 	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, fuzz_p, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0, 15, fuzz_w, 0);
 	/* ts->input_dev->name = ts->keypad_info->name; */
@@ -567,10 +601,14 @@ static int synaptics_ts_probe(
 
 	printk(KERN_INFO "synaptics_ts_probe: Start touchscreen %s in %s mode\n", ts->input_dev->name, ts->use_irq ? "interrupt" : "polling");
 
+#ifdef CONFIG_TOUCHSCREEN_VRPANEL
+	VrpInit(ts->input_dev, NULL);
+#else
 	set_bit(KEY_HOME, ts->input_dev->keybit);
 	set_bit(KEY_MENU, ts->input_dev->keybit);
 	set_bit(KEY_BACK, ts->input_dev->keybit);
 	set_bit(KEY_SEARCH, ts->input_dev->keybit);
+#endif
 
 	return 0;
 
@@ -624,7 +662,7 @@ static int synaptics_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	if (ts->power) {
 		ret = ts->power(0);
 		if (ret < 0)
-			printk(KERN_ERR "synaptics_ts_resume power off failed\n");
+			printk(KERN_ERR "synaptics_ts_suspend power off failed\n");
 	}
 	return 0;
 }
@@ -688,8 +726,10 @@ static const struct i2c_device_id synaptics_ts_id[] = {
 static struct i2c_driver synaptics_ts_driver = {
 	.probe		= synaptics_ts_probe,
 	.remove		= synaptics_ts_remove,
+#ifndef CONFIG_HAS_EARLYSUSPEND
 	.suspend	= synaptics_ts_suspend,
 	.resume		= synaptics_ts_resume,
+#endif
 	.id_table	= synaptics_ts_id,
 	.driver = {
 		.name	= SYNAPTICS_I2C_RMI_NAME,

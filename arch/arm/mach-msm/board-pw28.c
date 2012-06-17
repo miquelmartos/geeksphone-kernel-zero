@@ -60,9 +60,11 @@
 #include "devices.h"
 #include "socinfo.h"
 #include "clock.h"
+#include "cpufreq.h"
 #include "msm-keypad-devices.h"
 #include "pm.h"
-#ifdef CONFIG_ARCH_MSM7X27
+#include "proc_comm.h"
+#ifdef CONFIG_MSM_KGSL
 #include <linux/msm_kgsl.h>
 #endif
 #include <linux/synaptics_i2c_rmi.h>
@@ -79,7 +81,6 @@
 #define MSM_FB_SIZE 0x177000
 #define MSM_GPU_PHYS_SIZE SZ_2M
 #define PMEM_KERNEL_EBI1_SIZE 0x1C000
-/* Using lower 1MB of OEMSBL memory for GPU_PHYS */
 #define MSM_GPU_PHYS_START_ADDR	 0xD600000ul
 #endif
 /* Using upper 1/2MB of Apps Bootloader memory*/
@@ -1008,40 +1009,55 @@ static void __init bt_power_init(void)
 #define bt_power_init(x) do {} while (0)
 #endif
 
-#ifdef CONFIG_ARCH_MSM7X27
-static struct resource kgsl_resources[] = {
+static struct resource kgsl_3d0_resources[] = {
 	{
-		.name = "kgsl_reg_memory",
+		.name  = KGSL_3D0_REG_MEMORY,
 		.start = 0xA0000000,
 		.end = 0xA001ffff,
 		.flags = IORESOURCE_MEM,
 	},
 	{
-		.name   = "kgsl_phys_memory",
-		.start = 0,
-		.end = 0,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.name = "kgsl_yamato_irq",
+		.name = KGSL_3D0_IRQ,
 		.start = INT_GRAPHICS,
 		.end = INT_GRAPHICS,
 		.flags = IORESOURCE_IRQ,
 	},
 };
 
-static struct kgsl_platform_data kgsl_pdata;
-
-static struct platform_device msm_device_kgsl = {
-	.name = "kgsl",
-	.id = -1,
-	.num_resources = ARRAY_SIZE(kgsl_resources),
-	.resource = kgsl_resources,
-	.dev = {
-		.platform_data = &kgsl_pdata,
+static struct kgsl_device_platform_data kgsl_3d0_pdata = {
+	.pwr_data = {
+		.pwrlevel = {
+			{
+				.gpu_freq = 0,
+				.bus_freq = 20000000,
+			},
+		},
+		.init_level = 0,
+		.num_levels = 1,
+		.set_grp_async = NULL,
+		.idle_timeout = HZ/5,
+	},
+	.clk = {
+		.name = {
+			.clk = "grp_clk",
+			.pclk = "grp_pclk",
+		},
+	},
+	.imem_clk_name = {
+		.clk = "imem_clk",
+		.pclk = NULL,
 	},
 };
-#endif
+
+struct platform_device msm_kgsl_3d0 = {
+	.name = "kgsl-3d0",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(kgsl_3d0_resources),
+	.resource = kgsl_3d0_resources,
+	.dev = {
+		.platform_data = &kgsl_3d0_pdata,
+	},
+};
 
 static struct platform_device msm_device_pmic_leds = {
 	.name   = "pmic-leds",
@@ -1511,8 +1527,8 @@ static struct platform_device *devices[] __initdata = {
 	&msm_camera_sensor_mt9d112,
 #endif
 	&msm_bluesleep_device,
-#ifdef CONFIG_ARCH_MSM7X27
-	&msm_device_kgsl,
+#ifdef CONFIG_MSM_KGSL
+	&msm_kgsl_3d0,
 #endif
 	&hs_device,
 	&msm_batt_device,
@@ -2028,26 +2044,8 @@ static void __init msm7x2x_init(void)
 #ifdef CONFIG_ARCH_MSM7X27
 	/* Initialize the zero page for barriers and cache ops */
 	map_zero_page_strongly_ordered();
-	/* This value has been set to 160000 for power savings. */
-	/* OEMs may modify the value at their discretion for performance */
-	/* The appropriate maximum replacement for 160000 is: */
-	/* clk_get_max_axi_khz() */
-	kgsl_pdata.high_axi_3d = clk_get_max_axi_khz();
-
-	/* 7x27 doesn't allow graphics clocks to be run asynchronously to */
-	/* the AXI bus */
-	kgsl_pdata.max_grp2d_freq = 0;
-	kgsl_pdata.min_grp2d_freq = 0;
-	kgsl_pdata.set_grp2d_async = NULL;
-	kgsl_pdata.max_grp3d_freq = 0;
-	kgsl_pdata.min_grp3d_freq = 0;
-	kgsl_pdata.set_grp3d_async = NULL;
-	kgsl_pdata.imem_clk_name = "imem_clk";
-	kgsl_pdata.grp3d_clk_name = "grp_clk";
-	kgsl_pdata.grp2d_clk_name = NULL;
-#endif
 	usb_mpp_init();
-
+#endif
 #ifdef CONFIG_USB_FUNCTION
 	msm_hsusb_pdata.swfi_latency =
 		msm7x27_pm_data
@@ -2076,6 +2074,7 @@ static void __init msm7x2x_init(void)
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 	i2c_register_board_info(10, gpio_i2c_devices, ARRAY_SIZE(gpio_i2c_devices));
 
+	
 #ifdef CONFIG_SURF_FFA_GPIO_KEYPAD
 	if (machine_is_msm7x25_ffa() || machine_is_msm7x27_ffa())
 		platform_device_register(&keypad_device_7k_ffa);
@@ -2204,13 +2203,7 @@ static void __init msm_msm7x2x_allocate_memory_regions(void)
 		pr_info("allocating %lu bytes at %p (%lx physical) for kernel"
 			" ebi1 pmem arena\n", size, addr, __pa(addr));
 	}
-#ifdef CONFIG_ARCH_MSM7X27
-	size = MSM_GPU_PHYS_SIZE;
-	kgsl_resources[1].start = MSM_GPU_PHYS_START_ADDR ;
-	kgsl_resources[1].end = kgsl_resources[1].start + size - 1;
-	pr_info("allocating %lu bytes (at %lx physical) for KGSL\n",
-		size , MSM_GPU_PHYS_START_ADDR);
-#endif
+
 }
 
 static void __init msm7x2x_map_io(void)

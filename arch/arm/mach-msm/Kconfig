@@ -964,6 +964,7 @@ config MSM_DMA_TEST
 	  and ioctls for testing the MSM dma system.
 
 config WIFI_CONTROL_FUNC
+	depends on BCM4329
 	bool "Enable WiFi control function abstraction"
 	help
 	  Enables Power/Reset/Carddetect function abstraction
