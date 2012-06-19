@@ -175,49 +175,18 @@ struct xt_counters_info
 
 #include <linux/netdevice.h>
 
-/**
-* struct xt_action_param - parameters for matches/targets
-*
-* @match: the match extension
-* @target: the target extension
-* @matchinfo: per-match data
-* @targetinfo: per-target data
-* @in: input netdevice
-* @out: output netdevice
-* @fragoff: packet is a fragment, this is the data offset
-* @thoff: position of transport header relative to skb->data
-* @hook: hook number given packet came from
-* @family: Actual NFPROTO_* through which the function is invoked
-* (helpful when match->family == NFPROTO_UNSPEC)
-*
-* Fields written to by extensions:
-*
-* @hotdrop: drop packet if we had inspection problems
-* Network namespace obtainable using dev_net(in/out)
-*/
-struct xt_action_param {
-union {
-const struct xt_match *match;
-const struct xt_target *target;
-};
-union {
-const void *matchinfo, *targinfo;
-};
-const struct net_device *in, *out;
-int fragoff;
-unsigned int thoff;
-unsigned int hooknum;
-u_int8_t family;
-bool hotdrop;
-};
 
+#define xt_match_param xt_action_param
+#define xt_target_param xt_action_param
 /**
- * struct xt_match_param - parameters for match extensions' match functions
+ * struct xt_action_param - parameters for matches/targets
  *
+ * @match:	the match extension
+ * @target:	the target extension
+ * @matchinfo:	per-match data
+ * @targetinfo:	per-target data
  * @in:		input netdevice
  * @out:	output netdevice
- * @match:	struct xt_match through which this function was invoked
- * @matchinfo:	per-match data
  * @fragoff:	packet is a fragment, this is the data offset
  * @thoff:	position of transport header relative to skb->data
  * @hook:	hook number given packet came from
@@ -225,7 +194,14 @@ bool hotdrop;
  * 		(helpful when match->family == NFPROTO_UNSPEC)
  * @hotdrop:	drop packet if we had inspection problems
  */
-struct xt_match_param {
+struct xt_action_param {
+	union {
+		const struct xt_match *match;
+		const struct xt_target *target;
+	};
+	union {
+		const void *matchinfo, *targinfo;
+	};
 	const struct net_device *in, *out;
 	const struct xt_match *match;
 	const void *matchinfo;
@@ -260,23 +236,6 @@ struct xt_mtchk_param {
 struct xt_mtdtor_param {
 	const struct xt_match *match;
 	void *matchinfo;
-	u_int8_t family;
-};
-
-/**
- * struct xt_target_param - parameters for target extensions' target functions
- *
- * @hooknum:	hook through which this target was invoked
- * @target:	struct xt_target through which this function was invoked
- * @targinfo:	per-target data
- *
- * Other fields see above.
- */
-struct xt_target_param {
-	const struct net_device *in, *out;
-	const struct xt_target *target;
-	const void *targinfo;
-	unsigned int hooknum;
 	u_int8_t family;
 };
 
@@ -330,44 +289,6 @@ struct xt_match
 	void (*compat_from_user)(void *dst, void *src);
 	int (*compat_to_user)(void __user *dst, void *src);
 
-	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
-	struct module *me;
-
-	/* Free to use by each match */
-	unsigned long data;
-
-	const char *table;
-	unsigned int matchsize;
-	unsigned int compatsize;
-	unsigned int hooks;
-	unsigned short proto;
-
-	unsigned short family;
-};
-
-struct xt_match_stats
-{
-	struct list_head list;
-
-	const char name[XT_FUNCTION_MAXNAMELEN-1];
-	u_int8_t revision;
-
-	/* Return true or false: return FALSE and set *hotdrop = 1 to
-           force immediate packet drop. */
-	/* Arguments changed since 2.6.9, as this must now handle
-	   non-linear skb, using skb_header_pointer and
-	   skb_ip_make_writable. */
-	bool (*match)(const struct sk_buff *skb,
-		      struct xt_action_param *);
-
-	/* Called when user tries to insert an entry of this type. */
-	int (*checkentry)(const struct xt_mtchk_param *);
-
-	/* Called when entry of this type deleted. */
-	void (*destroy)(const struct xt_mtdtor_param *);
-	/* Called when userspace align differs from kernel space one */
-	void (*compat_from_user)(void *dst, const void *src);
-	int (*compat_to_user)(void __user *dst, const void *src);
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
 
