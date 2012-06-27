@@ -60,10 +60,8 @@
 #include "devices.h"
 #include "socinfo.h"
 #include "clock.h"
-#include "cpufreq.h"
 #include "msm-keypad-devices.h"
 #include "pm.h"
-#include "proc_comm.h"
 #ifdef CONFIG_MSM_KGSL
 #include <linux/msm_kgsl.h>
 #endif
@@ -93,24 +91,6 @@
 #define PID 0x9018
 #define ADBFN 0x1A
 
-#ifdef CONFIG_USB_FUNCTION
-static struct usb_mass_storage_platform_data usb_mass_storage_pdata = {
-	.nluns          = 0x02,
-	.buf_size       = 16384,
-	.vendor         = MASS_STORAGE_NAME,        // not used
-	.product        = "Mass storage",
-	.release        = 0xffff,
-};
-
-static struct platform_device mass_storage_device = {
-	.name           = "usb_mass_storage",
-	.id             = -1,
-	.dev            = {
-		.platform_data          = &usb_mass_storage_pdata,
-	},
-};
-#endif
-
 #ifdef CONFIG_USB_ANDROID
 static char *usb_functions_default[] = {
 #ifdef CONFIG_USB_ANDROID_DIAG
@@ -138,7 +118,9 @@ static char *usb_functions_default_adb[] = {
 #ifdef CONFIG_USB_ANDROID_RMNET
     "rmnet",
 #endif
+#ifdef CONFIG_USB_ANDROID_MASS_STORAGE
     "usb_mass_storage",
+#endif
 };
 
 static char *usb_functions_rndis[] = {
@@ -169,7 +151,9 @@ static char *usb_functions_all[] = {
 #ifdef CONFIG_USB_ANDROID_RMNET
     "rmnet",
 #endif
+#ifdef CONFIG_USB_ANDROID_MASS_STORAGE
     "usb_mass_storage",
+#endif
 #ifdef CONFIG_USB_ANDROID_ACM
     "acm",
 #endif
@@ -198,6 +182,7 @@ static struct android_usb_product usb_products[] = {
 	},
 };
 
+#ifdef CONFIG_USB_ANDROID_MASS_STORAGE
 static struct usb_mass_storage_platform_data mass_storage_pdata = {
 	.nluns		= 1,
 	.vendor     = "Qualcomm Incorporated",
@@ -212,7 +197,9 @@ static struct platform_device usb_mass_storage_device = {
 		.platform_data          = &mass_storage_pdata,
 	},
 };
+#endif
 
+#ifdef CONFIG_USB_ANDROID_RNDIS
 static struct usb_ether_platform_data rndis_pdata = {
 	/* ethaddr is filled by board_serialno_setup */
 	.vendorID       = VID,
@@ -226,6 +213,7 @@ static struct platform_device rndis_device = {
 		.platform_data = &rndis_pdata,
 	},
 };
+#endif
 
 static struct android_usb_platform_data android_usb_pdata = {
 	.vendor_id	= VID,
@@ -265,93 +253,6 @@ static int __init board_serialno_setup(char *serialno)
 	android_usb_pdata.serial_number = serialno;
 	return 1;
 }
-#endif
-
-#ifdef CONFIG_USB_FUNCTION
-static struct usb_function_map usb_functions_map[] = {
-#ifdef CONFIG_USB_ANDROID_DIAG
-	{"diag", 0},
-#endif
-	{"adb", 1},
-#ifdef CONFIG_USB_F_SERIAL
-	{"modem", 2},
-	{"nmea", 3},
-#endif
-	{"mass_storage", 4},
-	{"ethernet", 5},
-#ifdef CONFIG_USB_ANDROID_RMNET
-	{"rmnet", 6},
-#endif
-};
-
-/* dynamic composition */
-static struct usb_composition usb_func_composition[] = {
-	{
-		.product_id         = 0x9012,
-		.functions	    = 0x5, /* 0101 */
-	},
-
-	{
-		.product_id         = 0x9013,
-		.functions	    = 0x15, /* 10101 */
-	},
-
-	{
-		.product_id         = 0x9014,
-		.functions	    = 0x30, /* 110000 */
-	},
-
-	{
-		.product_id         = 0x9016,
-		.functions	    = 0xD, /* 01101 */
-	},
-
-	{
-		.product_id         = 0x9017,
-		.functions	    = 0x1D, /* 11101 */
-	},
-
-	{
-		.product_id         = 0xF000,
-		.functions	    = 0x10, /* 10000 */
-	},
-
-	{
-		.product_id         = 0xF009,
-		.functions	    = 0x20, /* 100000 */
-	},
-
-	{
-		.product_id         = 0x9018,
-		.functions	    = 0x1F, /* 011111 */
-	},
-#ifdef CONFIG_USB_FUNCTION_RMNET
-	{
-		.product_id         = 0x9021,
-		/* DIAG + RMNET */
-		.functions	    = 0x41,
-	},
-	{
-		.product_id         = 0x9022,
-		/* DIAG + ADB + RMNET */
-		.functions	    = 0x43,
-	},
-#endif
-};
-
-static struct msm_hsusb_platform_data msm_hsusb_pdata = {
-	.version	= 0x0100,
-	.phy_info	= (USB_PHY_INTEGRATED | USB_PHY_MODEL_65NM),
-	.vendor_id          = VID,
-	.product_name       = "Qualcomm HSUSB Device",
-	.serial_number      = "1234567890ABCDEF",
-	.manufacturer_name  = "Qualcomm Incorporated",
-	.compositions	= usb_func_composition,
-	.num_compositions = ARRAY_SIZE(usb_func_composition),
-	.function_map   = usb_functions_map,
-	.num_functions	= ARRAY_SIZE(usb_functions_map),
-	.config_gpio    = NULL,
-};
 #endif
 
 #ifdef CONFIG_USB_MSM_OTG_72K
@@ -1024,30 +925,7 @@ static struct resource kgsl_3d0_resources[] = {
 	},
 };
 
-static struct kgsl_device_platform_data kgsl_3d0_pdata = {
-	.pwr_data = {
-		.pwrlevel = {
-			{
-				.gpu_freq = 0,
-				.bus_freq = 20000000,
-			},
-		},
-		.init_level = 0,
-		.num_levels = 1,
-		.set_grp_async = NULL,
-		.idle_timeout = HZ/5,
-	},
-	.clk = {
-		.name = {
-			.clk = "grp_clk",
-			.pclk = "grp_pclk",
-		},
-	},
-	.imem_clk_name = {
-		.clk = "imem_clk",
-		.pclk = NULL,
-	},
-};
+static struct kgsl_device_platform_data kgsl_3d0_pdata;
 
 struct platform_device msm_kgsl_3d0 = {
 	.name = "kgsl-3d0",
@@ -1492,14 +1370,13 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #endif
 
-#ifdef CONFIG_USB_FUNCTION
-	&msm_device_hsusb_peripheral,
-	&mass_storage_device,
-#endif
-
 #ifdef CONFIG_USB_ANDROID
+#ifdef CONFIG_USB_ANDROID_MASS_STORAGE
 	&usb_mass_storage_device,
+#endif
+#ifdef CONFIG_USB_ANDROID_RNDIS
 	&rndis_device,
+#endif
 #ifdef CONFIG_USB_ANDROID_DIAG
 	&usb_diag_device,
 #endif
@@ -1512,8 +1389,8 @@ static struct platform_device *devices[] __initdata = {
 	&android_pmem_device,
 	&android_pmem_adsp_device,
 	&android_pmem_audio_device,
-    &msm_bl_device,	
-    &msm_charge_pump_device,
+	&msm_bl_device,	
+	&msm_charge_pump_device,
 	&msm_fb_device,
 	&lcdc_ili9325sim_panel_device,
 	&msm_device_uart_dm1,
@@ -2044,14 +1921,23 @@ static void __init msm7x2x_init(void)
 #ifdef CONFIG_ARCH_MSM7X27
 	/* Initialize the zero page for barriers and cache ops */
 	map_zero_page_strongly_ordered();
-	usb_mpp_init();
-#endif
-#ifdef CONFIG_USB_FUNCTION
-	msm_hsusb_pdata.swfi_latency =
-		msm7x27_pm_data
-		[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].latency;
+	/* This value has been set to 160000 for power savings. */
+	/* OEMs may modify the value at their discretion for performance */
+	/* The appropriate maximum replacement for 160000 is: */
+	/* msm7x2x_clock_data.max_axi_khz */
+	kgsl_3d0_pdata.pwr_data.pwrlevel[0].gpu_freq = 0;
+	kgsl_3d0_pdata.pwr_data.pwrlevel[0].bus_freq = clk_get_max_axi_khz();
+	kgsl_3d0_pdata.pwr_data.init_level = 0;
+	kgsl_3d0_pdata.pwr_data.num_levels = 1;
+	/* 7x27 doesn't allow graphics clocks to be run asynchronously to */
+	/* the AXI bus */
+	kgsl_3d0_pdata.pwr_data.set_grp_async = NULL;
+	kgsl_3d0_pdata.pwr_data.idle_timeout = HZ/5;
+	kgsl_3d0_pdata.clk.name.clk = "grp_clk";
+	kgsl_3d0_pdata.clk.name.pclk = "grp_pclk";
+	kgsl_3d0_pdata.imem_clk_name.clk = "imem_clk";
 
-	msm_device_hsusb_peripheral.dev.platform_data = &msm_hsusb_pdata;
+	usb_mpp_init();
 #endif
 
 #ifdef CONFIG_USB_MSM_OTG_72K
