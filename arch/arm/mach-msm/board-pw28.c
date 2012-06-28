@@ -15,51 +15,27 @@
  *
  */
 
-#include <linux/kernel.h>
+
 #include <linux/gpio.h>
-#include <linux/init.h>
-#include <linux/platform_device.h>
-#include <linux/input.h>
-#include <linux/io.h>
-#include <linux/delay.h>
 #include <linux/bootmem.h>
 #include <linux/power_supply.h>
-
-#include <mach/hardware.h>
-#include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-#include <asm/mach/flash.h>
 #include <asm/setup.h>
-#ifdef CONFIG_CACHE_L2X0
 #include <asm/hardware/cache-l2x0.h>
-#endif
-
 #include <asm/mach/mmc.h>
 #include <mach/vreg.h>
 #include <mach/mpp.h>
-#include <mach/board.h>
-#include <mach/pmic.h>
 #include <mach/msm_iomap.h>
-#include <mach/msm_rpcrouter.h>
-#include <mach/msm_hsusb.h>
 #include <mach/rpc_hsusb.h>
 #include <mach/rpc_pmapp.h>
-#include <mach/msm_serial_hs.h>
-#include <mach/memory.h>
 #include <mach/msm_battery.h>
 #include <mach/rpc_server_handset.h>
-
-#include <linux/mtd/nand.h>
-#include <linux/mtd/partitions.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 #include <linux/android_pmem.h>
 #include <mach/camera.h>
-
 #include "devices.h"
 #include "socinfo.h"
-#include "clock.h"
 #include "msm-keypad-devices.h"
 #include "pm.h"
 #ifdef CONFIG_MSM_KGSL
@@ -1264,66 +1240,13 @@ static struct platform_device msm_camera_sensor_mt9d112 = {
 
 #endif
 
-static u32 msm_calculate_batt_capacity(u32 current_voltage);
-
-typedef struct 
-{
-    u32 voltage;
-    u32 capacity;
-} BattFuelCapacity;
-
-static const BattFuelCapacity fuelCapacity[] = {
-   {3388, 0},                      /*   0% */
-   {3500, 10},                     /*  10%,3580 is 15% when 3660 is 20 */
-   {3660, 20},                     /*  20% */
-   {3710, 30},                     /*  30% */
-   {3761, 40},                     /*  40% */
-   {3801, 50},                     /*  50% */
-   {3842, 60},                     /*  60% */
-   {3909, 70},                     /*  70% */
-   {3977, 80},                     /*  80% */
-   {4066, 90},                     /*  90% */
-   {4150, 100}                     /* 100% */
-};
-
 static struct msm_psy_batt_pdata msm_psy_batt_data = {
-	.voltage_min_design 	= 3250,
+	.voltage_min_design 	= 3200,
 	.voltage_max_design 	= 4300,
 	.avail_chg_sources   	= AC_CHG | USB_CHG ,
 	.batt_technology        = POWER_SUPPLY_TECHNOLOGY_LION,
-	.calculate_capacity	= &msm_calculate_batt_capacity,
+	.calculate_capacity		= NULL,
 };
-
-static u32 msm_calculate_batt_capacity(u32 current_voltage)
-{
-    u8 step = sizeof(fuelCapacity)/sizeof(BattFuelCapacity);
-    u8 table_count;
-
-    if (current_voltage <= fuelCapacity[0].voltage)
-    {
-        return 0;
-    }
-    else if (current_voltage >= fuelCapacity[step-1].voltage)
-    {
-        return 99;
-    }
-    else
-    {    
-        for (table_count = 1; table_count< step; table_count++)
-        {
-            if (current_voltage <= fuelCapacity[table_count].voltage)
-            {
-                return (fuelCapacity[table_count-1].capacity 
-                    + ((current_voltage - fuelCapacity[table_count-1].voltage)*10
-                    /(fuelCapacity[table_count].voltage - 
-                    fuelCapacity[table_count-1].voltage)));
-            }
-        }
-    }
-
-    printk("%s: error\n", __func__);
-    return 0;
-}
 
 static struct platform_device msm_batt_device = {
 	.name 		    = "msm-battery",
@@ -1424,6 +1347,7 @@ static void __init msm_fb_add_devices(void)
 
 extern struct sys_timer msm_timer;
 
+#ifndef CONFIG_TOUCHSCREEN_VRPANEL
 static ssize_t pw28_virtual_keys_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
@@ -1453,6 +1377,8 @@ static struct attribute *pw28_properties_attrs[] = {
 static struct attribute_group pw28_properties_attr_group = {
 	.attrs = pw28_properties_attrs,
 };
+
+#endif
 
 static void __init msm7x2x_init_irq(void)
 {
@@ -1891,8 +1817,9 @@ EXPORT_SYMBOL(get_sd_boot_mode);
 
 static void __init msm7x2x_init(void)
 {
+#ifndef CONFIG_TOUCHSCREEN_VRPANEL
 	struct kobject *properties_kobj;
-
+#endif
 	wlan_power(1);
 	msm_clock_init(msm_clocks_7x27, msm_num_clocks_7x27);
 	platform_add_devices(early_devices, ARRAY_SIZE(early_devices));
@@ -1974,6 +1901,7 @@ static void __init msm7x2x_init(void)
 #endif
 	msm7x2x_init_mmc();
 
+#ifndef CONFIG_TOUCHSCREEN_VRPANEL
 	properties_kobj = kobject_create_and_add("board_properties", NULL);
 	if (properties_kobj) {
 		if (sysfs_create_group(properties_kobj,
@@ -1982,6 +1910,7 @@ static void __init msm7x2x_init(void)
 	} else {
 		pr_err("failed to create board_properties\n");
 	}
+#endif
 
 	bt_power_init();
 

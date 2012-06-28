@@ -13,52 +13,8 @@
  *
  */
 
-#ifndef _ARCH_ARM_MACH_MSM_PROC_COMM_H_
-#define _ARCH_ARM_MACH_MSM_PROC_COMM_H_
-
-
-// Supported by LEO:
-// 
-// 2  RESET_APPS
-// 3  RESET_CHIP
-
-// 6
-// 7
-// 8
-
-// 11 USB PIN CONFIG
-// 12 USB PIN SEL 
-// 13 SET RTC ALARM
-// 14 NVREAD 
-// 15 NVWRITE
-// 16 UUID 
-// 17 UUID
-// 18 ENTROPY 
-
-// 30 VREG_SWITCH
-// 31 VREG_SET_LEVEL
-// 35 
-// 36 ET_FTM_BOOT_COUN
-// 37 RPC_GPIO_TLMM_CONFIG_EX
-// 38 PM_MPP_CONFIG
-
-// 41 RESET_MODEM
-// 42 RESET_CHIP_IMM
-// 44 VREG_PULLDOWN
-//
-// 88 RESERVED0
-// 89 RESERVED1
-// 
-// 93 ENTER_APPSBL_CHG_MODE
-// 94 EXIT_APPSBL_CHG_MODE
-// 
-// 99  PM_MPP_CONFIG_DIGITAL_INPUT
-// 100 PM_MPP_CONFIG_I_SINK
-// 103
-// 104
-// 105
-// 106
-// 107
+#ifndef _ARCH_ARM_MACH_MSM_MSM_PROC_COMM_H_
+#define _ARCH_ARM_MACH_MSM_MSM_PROC_COMM_H_
 
 enum {
 	PCOM_CMD_IDLE = 0x0,
@@ -211,40 +167,6 @@ enum {
 	PCOM_CMD_FAIL_PROC_COMM_BUSY,
 	PCOM_CMD_FAIL_PROC_COMM_NOT_INIT,
 };
-
-enum {
-        PCOM_CLKRGM_APPS_RESET_USB_PHY  = 34,
-        PCOM_CLKRGM_APPS_RESET_USBH     = 37,
-};
-
-/* gpio info for PCOM_RPC_GPIO_TLMM_CONFIG_EX */
-
-#define GPIO_ENABLE	0
-#define GPIO_DISABLE	1
-
-#define GPIO_INPUT	0
-#define GPIO_OUTPUT	1
-
-#define GPIO_NO_PULL	0
-#define GPIO_PULL_DOWN	1
-#define GPIO_KEEPER	2
-#define GPIO_PULL_UP	3
-
-#define GPIO_2MA	0
-#define GPIO_4MA	1
-#define GPIO_6MA	2
-#define GPIO_8MA	3
-#define GPIO_10MA	4
-#define GPIO_12MA	5
-#define GPIO_14MA	6
-#define GPIO_16MA	7
-
-#define PCOM_GPIO_CFG(gpio, func, dir, pull, drvstr) \
-		((((gpio) & 0x3FF) << 4)	| \
-		((func) & 0xf)			| \
-		(((dir) & 0x1) << 14)		| \
-		(((pull) & 0x3) << 15)		| \
-		(((drvstr) & 0xF) << 17))
 
 void msm_proc_comm_reset_modem_now(void);
 int msm_proc_comm(unsigned cmd, unsigned *data1, unsigned *data2);
