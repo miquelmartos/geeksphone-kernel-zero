@@ -41,10 +41,12 @@
 #define MSMFB_OVERLAY_GET      _IOR(MSMFB_IOCTL_MAGIC, 140, \
 						struct mdp_overlay)
 #define MSMFB_OVERLAY_PLAY_ENABLE     _IOW(MSMFB_IOCTL_MAGIC, 141, unsigned int)
-
-#define MSMFB_SET_PANEL_VCOM     _IOW(MSMFB_IOCTL_MAGIC, 142, unsigned int)
-#define MSMFB_GET_PANEL_VCOM     _IOW(MSMFB_IOCTL_MAGIC, 143, unsigned int)
-
+#define MSMFB_DTV_LCDC_ENABLE     _IOW(MSMFB_IOCTL_MAGIC, 142, unsigned int)
+#define MSMFB_OVERLAY_REFRESH     _IOW(MSMFB_IOCTL_MAGIC, 143, unsigned int)
+#define MSMFB_MIXER_INFO	_IOWR(MSMFB_IOCTL_MAGIC, 148, \
+						struct msmfb_mixer_info_req)
+#define MSMFB_OVERLAY_PLAY_WAIT _IOWR(MSMFB_IOCTL_MAGIC, 149, \
+						struct msmfb_overlay_data)
 
 #define MDP_IMGTYPE2_START 0x10000
 
@@ -83,7 +85,7 @@ enum {
 #define MDP_ROT_270 (MDP_ROT_90|MDP_FLIP_UD|MDP_FLIP_LR)
 #define MDP_DITHER 0x8
 #define MDP_BLUR 0x10
-#define MDP_BLEND_FG_PREMULT 0x0
+#define MDP_BLEND_FG_PREMULT 0x20000
 #define MDP_DEINTERLACE 0x80000000
 #define MDP_SHARPENING  0x40000000
 #define MDP_NO_DMA_BARRIER_START	0x20000000
@@ -96,6 +98,8 @@ enum {
 #define MDP_BLIT_DST_GEM                0x02000000
 #define MDP_TRANSP_NOP 0xffffffff
 #define MDP_ALPHA_NOP 0xff
+#define MDP_SOURCE_ROTATED_90		0x00100000
+#define MDP_OV_PLAY_NOWAIT              0x00200000
 
 #define MDP_FB_PAGE_PROTECTION_NONCACHED         (0)
 #define MDP_FB_PAGE_PROTECTION_WRITECOMBINE      (1)
@@ -209,6 +213,24 @@ struct mdp_histogram {
 struct mdp_page_protection {
 	uint32_t page_protection;
 };
+
+
+struct mdp_mixer_info {
+	int pndx;
+	int pnum;
+	int ptype;
+	int mixer_num;
+	int z_order;
+};
+
+#define MAX_PIPE_PER_MIXER  4
+
+struct msmfb_mixer_info_req {
+	int mixer_num;
+	int cnt;
+	struct mdp_mixer_info info[MAX_PIPE_PER_MIXER];
+};
+
 
 #ifdef __KERNEL__
 

@@ -3,7 +3,7 @@
  * MSM 7k High speed uart driver
  *
  * Copyright (c) 2008 Google Inc.
- * Copyright (c) 2007-2009, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2007-2010, Code Aurora Forum. All rights reserved.
  * Modified: Nick Pelly <npelly@google.com>
  *
  * All source code in this file is licensed under the following license
@@ -47,7 +47,7 @@
 #include <linux/stat.h>
 #include <linux/device.h>
 #include <linux/wakelock.h>
-
+#include <linux/debugfs.h>
 #include <asm/atomic.h>
 #include <asm/irq.h>
 #include <asm/system.h>
@@ -138,6 +138,7 @@ struct msm_hs_port {
 	struct uart_port uport;
 	unsigned long imr_reg;  /* shadow value of UARTDM_IMR */
 	struct clk *clk;
+	struct clk *pclk;
 	struct msm_hs_tx tx;
 	struct msm_hs_rx rx;
 	/* gsbi uarts have to do additional writes to gsbi memory */
@@ -164,6 +165,7 @@ struct msm_hs_port {
 #define RETRY_TIMEOUT 5
 #define UARTDM_NR 2
 
+static struct dentry *debug_base;
 static struct msm_hs_port q_uart_port[UARTDM_NR];
 static struct platform_driver msm_serial_hs_platform_driver;
 static struct uart_driver msm_hs_driver;
@@ -320,11 +322,90 @@ static int msm_hs_request_port(struct uart_port *port)
 	return 0;
 }
 
+static int msm_serial_loopback_enable_set(void *data, u64 val)
+{
+	struct msm_hs_port *msm_uport = data;
+	struct uart_port *uport = &(msm_uport->uport);
+	unsigned long flags;
+	int ret = 0;
+
+	clk_enable(msm_uport->clk);
+	if (msm_uport->pclk)
+		clk_enable(msm_uport->pclk);
+
+	if (val) {
+		spin_lock_irqsave(&uport->lock, flags);
+		ret = msm_hs_read(uport, UARTDM_MR2_ADDR);
+		ret |= UARTDM_MR2_LOOP_MODE_BMSK;
+		msm_hs_write(uport, UARTDM_MR2_ADDR, ret);
+		spin_unlock_irqrestore(&uport->lock, flags);
+	} else {
+		spin_lock_irqsave(&uport->lock, flags);
+		ret = msm_hs_read(uport, UARTDM_MR2_ADDR);
+		ret &= ~UARTDM_MR2_LOOP_MODE_BMSK;
+		msm_hs_write(uport, UARTDM_MR2_ADDR, ret);
+		spin_unlock_irqrestore(&uport->lock, flags);
+	}
+
+	clk_disable(msm_uport->clk);
+	if (msm_uport->pclk)
+		clk_disable(msm_uport->pclk);
+
+	return 0;
+}
+
+static int msm_serial_loopback_enable_get(void *data, u64 *val)
+{
+	struct msm_hs_port *msm_uport = data;
+	struct uart_port *uport = &(msm_uport->uport);
+	unsigned long flags;
+	int ret = 0;
+
+	clk_enable(msm_uport->clk);
+	if (msm_uport->pclk)
+		clk_enable(msm_uport->pclk);
+
+	spin_lock_irqsave(&uport->lock, flags);
+	ret = msm_hs_read(&msm_uport->uport, UARTDM_MR2_ADDR);
+	spin_unlock_irqrestore(&uport->lock, flags);
+
+	clk_disable(msm_uport->clk);
+	if (msm_uport->pclk)
+		clk_disable(msm_uport->pclk);
+
+	*val = (ret & UARTDM_MR2_LOOP_MODE_BMSK) ? 1 : 0;
+	return 0;
+}
+DEFINE_SIMPLE_ATTRIBUTE(loopback_enable_fops, msm_serial_loopback_enable_get,
+			msm_serial_loopback_enable_set, "%llu\n");
+
+/*
+ * msm_serial_hs debugfs node: <debugfs_root>/msm_serial_hs/loopback.<id>
+ * writing 1 turns on internal loopback mode in HW. Useful for automation
+ * test scripts.
+ * writing 0 disables the internal loopback mode. Default is disabled.
+ */
+static void __init msm_serial_debugfs_init(struct msm_hs_port *msm_uport,
+					   int id)
+{
+	char node_name[15];
+	snprintf(node_name, sizeof(node_name), "loopback.%d", id);
+	if (IS_ERR_OR_NULL(debugfs_create_file(node_name,
+					       S_IRUGO | S_IWUSR,
+					       debug_base,
+					       msm_uport,
+					       &loopback_enable_fops))) {
+		debugfs_remove_recursive(debug_base);
+	}
+}
+
 static int __devexit msm_hs_remove(struct platform_device *pdev)
 {
 
 	struct msm_hs_port *msm_uport;
 	struct device *dev;
+	struct msm_serial_hs_platform_data *pdata = pdev->dev.platform_data;
+
 
 	if (pdev->id < 0 || pdev->id >= UARTDM_NR) {
 		printk(KERN_ERR "Invalid plaform device ID = %d\n", pdev->id);
@@ -334,7 +415,12 @@ static int __devexit msm_hs_remove(struct platform_device *pdev)
 	msm_uport = &q_uart_port[pdev->id];
 	dev = msm_uport->uport.dev;
 
+	if (pdata && pdata->gpio_config)
+		if (pdata->gpio_config(0))
+			dev_err(dev, "GPIO config error\n");
+
 	sysfs_remove_file(&pdev->dev.kobj, &dev_attr_clock.attr);
+	debugfs_remove_recursive(debug_base);
 
 	dma_unmap_single(dev, msm_uport->rx.mapped_cmd_ptr, sizeof(dmov_box),
 			 DMA_TO_DEVICE);
@@ -385,6 +471,14 @@ static int msm_hs_init_clk(struct uart_port *uport)
 	if (ret) {
 		printk(KERN_ERR "Error could not turn on UART clk\n");
 		return ret;
+	}
+	if (msm_uport->pclk) {
+		ret = clk_enable(msm_uport->pclk);
+		if (ret) {
+			dev_err(uport->dev,
+				"Error could not turn on UART pclk\n");
+			return ret;
+		}
 	}
 
 	msm_uport->clk_state = MSM_HS_CLK_ON;
@@ -1024,6 +1118,9 @@ void msm_hs_set_mctrl_locked(struct uart_port *uport,
 	unsigned int data;
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 
+	if(unlikely(uport == NULL))
+		return;
+
 	clk_enable(msm_uport->clk);
 
 	/* RTS is active low */
@@ -1175,6 +1272,8 @@ static int msm_hs_check_clock_off_locked(struct uart_port *uport)
 
 	/* we really want to clock off */
 	clk_disable(msm_uport->clk);
+	if (msm_uport->pclk)
+		clk_disable(msm_uport->pclk);
 	msm_uport->clk_state = MSM_HS_CLK_OFF;
 	if (use_low_power_wakeup(msm_uport)) {
 		msm_uport->wakeup.ignore = 1;
@@ -1298,13 +1397,24 @@ EXPORT_SYMBOL(msm_hs_request_clock_off);
 static void msm_hs_request_clock_on_locked(struct uart_port *uport) {
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 	unsigned int data;
+	int ret = 0;
+
+	if(unlikely(uport == NULL))
+		return;
 
 	switch (msm_uport->clk_state) {
 	case MSM_HS_CLK_OFF:
 		wake_lock(&msm_uport->dma_wake_lock);
 		clk_enable(msm_uport->clk);
+		if (msm_uport->pclk)
+			ret = clk_enable(msm_uport->pclk);
 		disable_irq_nosync(msm_uport->wakeup.irq);
-		/* fall-through */
+		if (unlikely(ret)) {
+			dev_err(uport->dev, "Clock ON Failure"
+				"Stalling HSUART\n");
+			break;
+		}
+		/* else fall-through */
 	case MSM_HS_CLK_REQUEST_OFF:
 		if (msm_uport->rx.flush == FLUSH_STOP ||
 		    msm_uport->rx.flush == FLUSH_SHUTDOWN) {
@@ -1617,6 +1727,11 @@ static int __init msm_hs_probe(struct platform_device *pdev)
 
 		if (unlikely(msm_uport->wakeup.irq < 0))
 			return -ENXIO;
+
+		if (pdata->gpio_config)
+			if (unlikely(pdata->gpio_config(1)))
+				dev_err(uport->dev, "Cannot configure"
+					"gpios\n");
 	}
 
 	resource = platform_get_resource_byname(pdev, IORESOURCE_DMA,
@@ -1640,12 +1755,17 @@ static int __init msm_hs_probe(struct platform_device *pdev)
 	uport->uartclk = 7372800;
 	msm_uport->imr_reg = 0x0;
 
-	if (pdata && pdata->clk_name)
-		msm_uport->clk = clk_get(&pdev->dev, pdata->clk_name);
-	else
-		msm_uport->clk = clk_get(&pdev->dev, "uartdm_clk");
+	msm_uport->clk = clk_get(&pdev->dev, "uartdm_clk");
 	if (IS_ERR(msm_uport->clk))
 		return PTR_ERR(msm_uport->clk);
+
+	msm_uport->pclk = clk_get(&pdev->dev, "uartdm_pclk");
+	/*
+	 * Some configurations do not require explicit pclk control so
+	 * do not flag error on pclk get failure.
+	 */
+	if (IS_ERR(msm_uport->pclk))
+		msm_uport->pclk = NULL;
 
 	ret = clk_set_rate(msm_uport->clk, uport->uartclk);
 	if (ret) {
@@ -1670,6 +1790,8 @@ static int __init msm_hs_probe(struct platform_device *pdev)
 	if (unlikely(ret))
 		return ret;
 
+	msm_serial_debugfs_init(msm_uport, pdev->id);
+
 	uport->line = pdev->id;
 	return uart_add_one_port(&msm_hs_driver, uport);
 }
@@ -1688,9 +1810,15 @@ static int __init msm_serial_hs_init(void)
 		printk(KERN_ERR "%s failed to load\n", __FUNCTION__);
 		return ret;
 	}
-	ret = platform_driver_register(&msm_serial_hs_platform_driver);
+	debug_base = debugfs_create_dir("msm_serial_hs", NULL);
+	if (IS_ERR_OR_NULL(debug_base))
+		pr_info("msm_serial_hs: Cannot create debugfs dir\n");
+
+	ret = platform_driver_probe(&msm_serial_hs_platform_driver,
+					msm_hs_probe);
 	if (ret) {
 		printk(KERN_ERR "%s failed to load\n", __FUNCTION__);
+		debugfs_remove_recursive(debug_base);
 		uart_unregister_driver(&msm_hs_driver);
 		return ret;
 	}
@@ -1732,6 +1860,8 @@ static void msm_hs_shutdown(struct uart_port *uport)
 	clk_disable(msm_uport->clk);  /* to balance local clk_enable() */
 	if (msm_uport->clk_state != MSM_HS_CLK_OFF) {
 		clk_disable(msm_uport->clk);  /* to balance clk_state */
+		if (msm_uport->pclk)
+			clk_disable(msm_uport->pclk);
 		wake_unlock(&msm_uport->dma_wake_lock);
 	}
 	msm_uport->clk_state = MSM_HS_CLK_PORT_OFF;
@@ -1793,7 +1923,6 @@ static const struct dev_pm_ops msm_hs_dev_pm_ops = {
 };
 
 static struct platform_driver msm_serial_hs_platform_driver = {
-	.probe  = msm_hs_probe,
 	.remove = msm_hs_remove,
 	.driver = {
 		.name = "msm_serial_hs",
