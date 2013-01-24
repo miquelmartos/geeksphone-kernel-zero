@@ -510,7 +510,13 @@ static int synaptics_ts_probe(
 	ts->input_dev->name = "synaptics-rmi-touchscreen";
 	set_bit(EV_SYN, ts->input_dev->evbit);
 	set_bit(EV_KEY, ts->input_dev->evbit);
+	set_bit(BTN_TOUCH, ts->input_dev->keybit);
 	set_bit(EV_ABS, ts->input_dev->evbit);
+	set_bit(ABS_MT_TOUCH_MAJOR, ts->input_dev->absbit);
+	set_bit(ABS_MT_POSITION_X, ts->input_dev->absbit);
+	set_bit(ABS_MT_POSITION_Y, ts->input_dev->absbit);
+	set_bit(ABS_MT_WIDTH_MAJOR, ts->input_dev->absbit);
+
 	inactive_area_left = inactive_area_left * max_x / 0x10000;
 	inactive_area_right = inactive_area_right * max_x / 0x10000;
 	inactive_area_top = inactive_area_top * max_y / 0x10000;

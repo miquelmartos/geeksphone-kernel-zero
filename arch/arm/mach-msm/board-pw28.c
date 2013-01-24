@@ -49,21 +49,14 @@
 #endif
 
 #ifdef CONFIG_ARCH_MSM7X27
-//#define MSM_PMEM_MDP_SIZE 0xDBB000
-//14397440 13,5MB
-#define MSM_PMEM_MDP_SIZE 0xC00000
+#define MSM_PMEM_MDP_SIZE 0xE00000
 #define MSM_PMEM_ADSP_SIZE 0x900000
-//9986048   9,5 MB
-#define MSM_PMEM_AUDIO_SIZE 0x5B000
-//372736  0,35MB
 
-#define MSM_FB_SIZE 0x200000
+#define MSM_FB_SIZE 0x177000
 #define MSM_GPU_PHYS_SIZE SZ_2M
 #define PMEM_KERNEL_EBI1_SIZE 0x1C000
 #define MSM_GPU_PHYS_START_ADDR	 0xD600000ul
 #endif
-/* Using upper 1/2MB of Apps Bootloader memory*/
-#define MSM_PMEM_AUDIO_START_ADDR	0x1C000ul
 
 #define MANU_NAME "SIMCOM"
 #define MASS_STORAGE_NAME "SIMCOM"
@@ -429,12 +422,6 @@ static struct android_pmem_platform_data android_pmem_adsp_pdata = {
 	.cached = 0,
 };
 
-static struct android_pmem_platform_data android_pmem_audio_pdata = {
-	.name = "pmem_audio",
-	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
-	.cached = 0,
-};
-
 static struct platform_device android_pmem_device = {
 	.name = "android_pmem",
 	.id = 0,
@@ -445,12 +432,6 @@ static struct platform_device android_pmem_adsp_device = {
 	.name = "android_pmem",
 	.id = 1,
 	.dev = { .platform_data = &android_pmem_adsp_pdata },
-};
-
-static struct platform_device android_pmem_audio_device = {
-	.name = "android_pmem",
-	.id = 2,
-	.dev = { .platform_data = &android_pmem_audio_pdata },
 };
 
 static struct platform_device android_pmem_kernel_ebi1_device = {
@@ -973,7 +954,7 @@ static int synaptics_power(int on) {
     		gpio_tlmm_config(GPIO_CFG(123, 0, GPIO_CFG_OUTPUT,
                 GPIO_CFG_PULL_UP, GPIO_CFG_16MA), GPIO_CFG_ENABLE);
             vreg_enable(vreg);
-            vreg_set_level(vreg, 2800);
+            vreg_set_level(vreg, 2600);
         }
         else {
         	pr_info("synaptics power off\n");
@@ -1246,7 +1227,7 @@ static struct platform_device msm_camera_sensor_mt9d112 = {
 #endif
 
 static struct msm_psy_batt_pdata msm_psy_batt_data = {
-	.voltage_min_design 	= 3200,
+	.voltage_min_design 	= 3250,
 	.voltage_max_design 	= 4300,
 	.avail_chg_sources   	= AC_CHG | USB_CHG ,
 	.batt_technology        = POWER_SUPPLY_TECHNOLOGY_LION,
@@ -1312,11 +1293,10 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&msm_device_i2c,
 	&msm_device_gpio_i2c,
-	&msm_device_tssc,
+
 	&android_pmem_kernel_ebi1_device,
 	&android_pmem_device,
 	&android_pmem_adsp_device,
-	&android_pmem_audio_device,
 	&msm_bl_device,	
 	&msm_charge_pump_device,
 	&msm_fb_device,
@@ -1944,14 +1924,6 @@ static void __init pmem_adsp_size_setup(char **p)
 }
 __early_param("pmem_adsp_size=", pmem_adsp_size_setup);
 
-static unsigned pmem_audio_size = MSM_PMEM_AUDIO_SIZE;
-static int __init pmem_audio_size_setup(char *p)
-{
-	pmem_audio_size = memparse(p, NULL);
-	return 0;
-}
-early_param("pmem_audio_size", pmem_audio_size_setup);
-
 static unsigned fb_size = MSM_FB_SIZE;
 static void __init fb_size_setup(char **p)
 {
@@ -1980,20 +1952,6 @@ static void __init msm_msm7x2x_allocate_memory_regions(void)
 		android_pmem_adsp_pdata.size = size;
 		pr_info("allocating %lu bytes at %p (%lx physical) for adsp "
 			"pmem arena\n", size, addr, __pa(addr));
-	}
-
-	size = pmem_audio_size;
-	if (size > 0xE1000) {
-		addr = alloc_bootmem(size);
-		android_pmem_audio_pdata.start = __pa(addr);
-		android_pmem_audio_pdata.size = size;
-		pr_info("allocating %lu bytes at %p (%lx physical) for audio "
-			"pmem arena\n", size, addr, __pa(addr));
-	} else if (size) {
-		android_pmem_audio_pdata.start = MSM_PMEM_AUDIO_START_ADDR;
-		android_pmem_audio_pdata.size = size;
-		pr_info("allocating %lu bytes (at %lx physical) for audio "
-			"pmem arena\n", size , MSM_PMEM_AUDIO_START_ADDR);
 	}
 
 	size = fb_size ? : MSM_FB_SIZE;
